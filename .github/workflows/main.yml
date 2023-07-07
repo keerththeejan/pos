@@ -29,4 +29,4 @@ jobs:
         server: ftp.akshayamtamil.com
         username: ${{ secrets.USERNAME }}
         password: ${{ secrets.PASSWORD }}
-        server-dir: /pos
+        server-dir: /pos/
