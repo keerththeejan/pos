@@ -799,6 +799,12 @@ class AdminSidebarMenu
                   </svg>', 'active' => request()->segment(1) == 'notification-templates'])->order(80);
             }
 
+            //Banners menu (above Settings)
+            $menu->url(action([\App\Http\Controllers\BannersController::class, 'index']), __('Banners'), [
+                'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="tw-size-5 tw-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H4z"/><path d="M4 16l4-4 3 3 5-5 4 4"/></svg>',
+                'active' => request()->segment(1) == 'banners'
+            ])->order(83);
+
             //Settings Dropdown
             if (auth()->user()->can('business_settings.access') ||
                 auth()->user()->can('barcode_settings.access') ||

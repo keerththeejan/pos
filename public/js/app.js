@@ -52,13 +52,15 @@ $(document).ready(function() {
     $(document).on('submit', 'form#brand_add_form', function(e) {
         e.preventDefault();
         var form = $(this);
-        var data = form.serialize();
+        var data = new FormData(this);
 
         $.ajax({
             method: 'POST',
             url: $(this).attr('action'),
             dataType: 'json',
             data: data,
+            processData: false,
+            contentType: false,
             beforeSend: function(xhr) {
                 __disable_submit_button(form.find('button[type="submit"]'));
             },
@@ -81,18 +83,39 @@ $(document).ready(function() {
         });
     });
 
+    // Handle image preview for brand forms
+    $(document).on('change', 'input[type="file"][name="image"]', function() {
+        var input = this;
+        var previewContainer = $(this).siblings('.js-image-preview');
+        
+        if (input.files && input.files[0]) {
+            var reader = new FileReader();
+            
+            reader.onload = function(e) {
+                previewContainer.html('<img src="' + e.target.result + '" style="max-height:80px;border-radius:6px" alt="Preview">');
+            }
+            
+            reader.readAsDataURL(input.files[0]);
+        } else {
+            previewContainer.empty();
+        }
+    });
+
     //Brands table
     var brands_table = $('#brands_table').DataTable({
         processing: true,
         serverSide: true,
         fixedHeader:false,
         ajax: '/brands',
+        columns: [
+            { data: 'name', name: 'name', defaultContent: '' },
+            { data: 'description', name: 'description', orderable: false, searchable: false, defaultContent: '' },
+            { data: 'image', name: 'image', orderable: false, searchable: false, width: '56px', defaultContent: '' },
+            { data: 'action', name: 'action', orderable: false, searchable: false, defaultContent: '' },
+        ],
         columnDefs: [
-            {
-                targets: 2,
-                orderable: false,
-                searchable: false,
-            },
+            { targets: 2, className: 'dt-body-center', orderable: false, searchable: false },
+            { targets: 3, orderable: false, searchable: false },
         ],
     });
 
@@ -103,13 +126,15 @@ $(document).ready(function() {
             $('form#brand_edit_form').submit(function(e) {
                 e.preventDefault();
                 var form = $(this);
-                var data = form.serialize();
+                var data = new FormData(this);
 
                 $.ajax({
                     method: 'POST',
                     url: $(this).attr('action'),
                     dataType: 'json',
                     data: data,
+                    processData: false,
+                    contentType: false,
                     beforeSend: function(xhr) {
                         __disable_submit_button(form.find('button[type="submit"]'));
                     },
@@ -125,6 +150,19 @@ $(document).ready(function() {
                 });
             });
         });
+    });
+
+    // Simple preview for brand image in modal
+    $(document).on('change', '.brands_modal input[type="file"][name="image"]', function(){
+        var $modal = $(this).closest('.brands_modal');
+        var $preview = $modal.find('.js-image-preview');
+        if(!$preview.length){ $preview = $('<div class="js-image-preview tw-mt-2"></div>').insertAfter($(this)); }
+        $preview.empty();
+        if(this.files && this.files[0]){
+            var url = URL.createObjectURL(this.files[0]);
+            var $img = $('<img>',{ src: url, css: { maxHeight: '80px', borderRadius: '6px' }, alt: 'Preview' });
+            $preview.append($img);
+        }
     });
 
     $(document).on('click', 'button.delete_brand_button', function() {

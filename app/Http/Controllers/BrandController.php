@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use App\Brands;
 use App\Utils\ModuleUtil;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Schema;
 use Yajra\DataTables\Facades\DataTables;
 
 class BrandController extends Controller
@@ -39,23 +42,40 @@ class BrandController extends Controller
         if (request()->ajax()) {
             $business_id = request()->session()->get('user.business_id');
 
-            $brands = Brands::where('business_id', $business_id)
-                        ->select(['name', 'description', 'id']);
+            $select = ['id', 'name', 'description'];
+            if (Schema::hasColumn('brands', 'image_path')) {
+                $select[] = 'image_path';
+            }
 
-            return Datatables::of($brands)
-                ->addColumn(
-                    'action',
-                    '@can("brand.update")
-                    <button data-href="{{action(\'App\Http\Controllers\BrandController@edit\', [$id])}}" class="tw-dw-btn tw-dw-btn-xs tw-dw-btn-outline tw-dw-btn-primary edit_brand_button"><i class="glyphicon glyphicon-edit"></i> @lang("messages.edit")</button>
-                        &nbsp;
-                    @endcan
-                    @can("brand.delete")
-                        <button data-href="{{action(\'App\Http\Controllers\BrandController@destroy\', [$id])}}" class="tw-dw-btn tw-dw-btn-outline tw-dw-btn-xs tw-dw-btn-error delete_brand_button"><i class="glyphicon glyphicon-trash"></i> @lang("messages.delete")</button>
-                    @endcan'
-                )
+            $brands = Brands::where('business_id', $business_id)
+                        ->select($select);
+
+            return DataTables::of($brands)
+                ->addColumn('image', function ($row) {
+                    $src = null;
+                    if (isset($row->image_path) && !empty($row->image_path)) {
+                        $src = Str::startsWith($row->image_path, ['http://', 'https://'])
+                            ? $row->image_path
+                            : Storage::url($row->image_path);
+                    }
+                    if (empty($src)) {
+                        $src = asset('img/default.png');
+                    }
+                    return '<img src="'.e($src).'" alt="'.e($row->name).'" style="width:40px;height:40px;object-fit:cover;border-radius:4px;" onerror="this.src=\'' . asset('img/default.png') . '\'">';
+                })
+                ->addColumn('action', function ($row) {
+                    $buttons = '';
+                    if (auth()->user()->can('brand.update')) {
+                        $buttons .= '<button data-href="'.e(action('App\\Http\\Controllers\\BrandController@edit', [$row->id])).'" class="tw-dw-btn tw-dw-btn-xs tw-dw-btn-outline tw-dw-btn-primary edit_brand_button"><i class="glyphicon glyphicon-edit"></i> '.e(__('messages.edit')).'</button> ';
+                    }
+                    if (auth()->user()->can('brand.delete')) {
+                        $buttons .= '<button data-href="'.e(action('App\\Http\\Controllers\\BrandController@destroy', [$row->id])).'" class="tw-dw-btn tw-dw-btn-outline tw-dw-btn-xs tw-dw-btn-error delete_brand_button"><i class="glyphicon glyphicon-trash"></i> '.e(__('messages.delete')).'</button>';
+                    }
+                    return $buttons;
+                })
                 ->removeColumn('id')
-                ->rawColumns([2])
-                ->make(false);
+                ->rawColumns(['image', 'action'])
+                ->make(true);
         }
 
         return view('brand.index');

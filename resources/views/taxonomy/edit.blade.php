@@ -1,7 +1,7 @@
 <div class="modal-dialog" role="document">
   <div class="modal-content">
 
-    {!! Form::open(['url' => action([\App\Http\Controllers\TaxonomyController::class, 'update'], [$category->id]), 'method' => 'PUT', 'id' => 'category_edit_form' ]) !!}
+    {!! Form::open(['url' => action([\App\Http\Controllers\TaxonomyController::class, 'update'], [$category->id]), 'method' => 'PUT', 'id' => 'category_edit_form', 'files' => true ]) !!}
 
     <div class="modal-header">
       <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
@@ -33,6 +33,18 @@
       <div class="form-group">
         {!! Form::label('description', __( 'lang_v1.description' ) . ':') !!}
         {!! Form::textarea('description', $category->description, ['class' => 'form-control', 'placeholder' => __( 'lang_v1.description'), 'rows' => 3]); !!}
+      </div>
+      <div class="form-group">
+        {!! Form::label('image', __('lang_v1.image') . ':') !!}
+        @if(!empty($category->image_path))
+            <div class="js-image-preview tw-mb-2">
+                <img src="{{ asset($category->image_path) }}" alt="{{ $category->name }}" style="max-height:60px;border-radius:6px">
+            </div>
+        @else
+            <div class="js-image-preview tw-mb-2"></div>
+        @endif
+        {!! Form::file('image', ['class' => 'form-control']) !!}
+        <p class="help-block">PNG/JPG up to 2MB</p>
       </div>
       @if(!empty($parent_categories) && $enable_sub_category)
           <div class="form-group">

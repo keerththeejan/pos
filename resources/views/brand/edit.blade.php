@@ -1,7 +1,7 @@
 <div class="modal-dialog" role="document">
   <div class="modal-content">
 
-    {!! Form::open(['url' => action([\App\Http\Controllers\BrandController::class, 'update'], [$brand->id]), 'method' => 'PUT', 'id' => 'brand_edit_form' ]) !!}
+    {!! Form::open(['url' => action([\App\Http\Controllers\BrandController::class, 'update'], [$brand->id]), 'method' => 'PUT', 'id' => 'brand_edit_form', 'files' => true ]) !!}
 
     <div class="modal-header">
       <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
@@ -17,6 +17,17 @@
       <div class="form-group">
         {!! Form::label('description', __( 'brand.short_description' ) . ':') !!}
           {!! Form::text('description', $brand->description, ['class' => 'form-control','placeholder' => __( 'brand.short_description' )]); !!}
+      </div>
+
+      <div class="form-group">
+        {!! Form::label('image', 'Image' . ':') !!}
+          {!! Form::file('image', ['accept' => 'image/*', 'class' => 'form-control']) !!}
+          <small class="help-block">PNG, JPG up to ~2MB</small>
+          <div class="tw-mt-2 js-image-preview">
+            @if(!empty($brand->image_path))
+              <img src="{{ asset('uploads/brand_images/' . $brand->image_path) }}" alt="{{ $brand->name }}" style="max-height:80px;border-radius:6px" onerror="this.style.display='none'">
+            @endif
+          </div>
       </div>
 
         @if($is_repair_installed)

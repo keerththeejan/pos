@@ -366,6 +366,7 @@
             @endif
         @endif
     </div>
+    
     @if (auth()->user()->can('dashboard.data'))
         <div class="tw-px-5 tw-py-6">
             <div class="tw-grid tw-grid-cols-1 tw-gap-4 sm:tw-gap-5 lg:tw-grid-cols-2">

@@ -33,13 +33,10 @@
     @endif
     <div class="container-fluid">
         <div class="row eq-height-row">
-            <div class="col-md-12 col-sm-12 col-xs-12 right-col tw-pt-20 tw-pb-10 tw-px-5">
+            <div class="col-md-12 col-sm-12 col-xs-12 right-col {{ View::hasSection('no_top_padding') ? 'tw-pt-0' : 'tw-pt-20' }} tw-pb-10 tw-px-5">
                 <div class="row">
-                    {{-- <div
-                        class="lg:tw-w-16 md:tw-h-16 tw-w-12 tw-h-12 tw-flex tw-items-center tw-justify-center tw-mx-auto tw-overflow-hidden tw-bg-white tw-rounded-full tw-p-0.5 tw-mb-4">
-                        <img src="{{ asset('img/logo-small.png')}}" alt="lock" class="tw-rounded-full tw-object-fill" />
-                    </div> --}}
-
+                    @php $hide_topbar = View::hasSection('hide_auth2_topbar'); @endphp
+                    @unless($hide_topbar)
                     <div class="tw-absolute tw-top-2 md:tw-top-5 tw-left-4 md:tw-left-8 tw-flex tw-items-center tw-gap-4"
                         style="text-align: left">
                         <a href="{{ url('/') }}">
@@ -54,7 +51,7 @@
                                 @lang('repair::lang.repair_status')
                             </a>
                         @endif
-                        
+                    
                         @if(Route::has('member_scanner'))
                             <a class="tw-text-white tw-font-medium tw-text-sm md:tw-text-base hover:tw-text-white"
                                 href="{{ action([\Modules\Gym\Http\Controllers\MemberController::class, 'member_scanner']) }}">
@@ -62,7 +59,9 @@
                             </a>
                         @endif
                     </div>
+                    @endunless
 
+                    @unless($hide_topbar)
                     <div class="tw-absolute tw-top-5 md:tw-top-8 tw-right-5 md:tw-right-10 tw-flex tw-items-center tw-gap-4"
                         style="text-align: left">
                         @if (!($request->segment(1) == 'business' && $request->segment(2) == 'register'))
@@ -91,6 +90,7 @@
                         @endif
                         @include('layouts.partials.language_btn')
                     </div>
+                    @endunless
                     <div class="col-md-10 col-xs-8" style="text-align: right;">
 
                     </div>

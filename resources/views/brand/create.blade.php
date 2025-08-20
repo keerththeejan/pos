@@ -1,7 +1,7 @@
 <div class="modal-dialog" role="document">
   <div class="modal-content">
 
-    {!! Form::open(['url' => action([\App\Http\Controllers\BrandController::class, 'store']), 'method' => 'post', 'id' => $quick_add ? 'quick_add_brand_form' : 'brand_add_form' ]) !!}
+    {!! Form::open(['url' => action([\App\Http\Controllers\BrandController::class, 'store']), 'method' => 'post', 'id' => $quick_add ? 'quick_add_brand_form' : 'brand_add_form', 'files' => true ]) !!}
 
     <div class="modal-header">
       <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
@@ -17,6 +17,15 @@
       <div class="form-group">
         {!! Form::label('description', __( 'brand.short_description' ) . ':') !!}
           {!! Form::text('description', null, ['class' => 'form-control','placeholder' => __( 'brand.short_description' )]); !!}
+      </div>
+
+      <div class="form-group">
+        {!! Form::label('image', 'Image' . ':') !!}
+          {!! Form::file('image', ['accept' => 'image/*', 'class' => 'form-control']) !!}
+          <small class="help-block">PNG, JPG up to ~2MB</small>
+          <div class="tw-mt-2 js-image-preview">
+            <!-- Image preview will be shown here after selection -->
+          </div>
       </div>
 
         @if($is_repair_installed)

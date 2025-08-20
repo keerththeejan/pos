@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Category;
 use App\Utils\ModuleUtil;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Yajra\DataTables\Facades\DataTables;
 
 class TaxonomyController extends Controller
@@ -87,16 +89,76 @@ class TaxonomyController extends Controller
 
                     return $html;
                 })
-                ->editColumn('name', function ($row) {
-                    // If parent_name is set (means it's a child)
-                    if (!empty($row->parent_name)) {
-                        return $row->parent_name . ' -> ' . $row->name;
+                ->addColumn('image', function ($row) {
+                    $defaultUrl = '/' . ltrim('img/default.png', '/');
+                    $raw = $row->image_path ?: '';
+                    $raw = str_replace('\\', '/', $raw); // normalize slashes
+
+                    $final = '';
+                    if ($raw === '') {
+                        $final = $defaultUrl;
+                    } elseif (preg_match('/^https?:\/\//i', $raw)) {
+                        // Absolute URL already
+                        $final = $raw;
+                    } elseif (strpos($raw, '/storage/') === 0) {
+                        // Already a storage URL, verify file exists; if missing, try legacy path
+                        $candidate = ltrim($raw, '/'); // storage/category_images/...
+                        if (file_exists(public_path($candidate))) {
+                            $final = $raw;
+                        } else {
+                            $basename = basename($raw);
+                            $legacyRel = 'uploads/public/category_images/' . $basename;
+                            if (file_exists(public_path($legacyRel))) {
+                                $final = '/' . $legacyRel;
+                            } else {
+                                $final = $raw; // leave as-is; onerror will swap to default
+                            }
+                        }
+                    } elseif (strpos($raw, 'storage/') === 0) {
+                        $candidate = ltrim('/' . $raw, '/');
+                        if (file_exists(public_path($candidate))) {
+                            $final = '/' . $raw;
+                        } else {
+                            $basename = basename($raw);
+                            $legacyRel = 'uploads/public/category_images/' . $basename;
+                            if (file_exists(public_path($legacyRel))) {
+                                $final = '/' . $legacyRel;
+                            } else {
+                                $final = '/' . $raw;
+                            }
+                        }
+                    } elseif (strpos($raw, 'public/') === 0) {
+                        // Convert Laravel disk path public/... -> /storage/...
+                        $final = '/' . preg_replace('/^public\//', 'storage/', $raw);
+                    } else {
+                        // Try common storage locations
+                        // 1) category_images/foo.jpg -> /storage/category_images/foo.jpg
+                        if (\Illuminate\Support\Facades\Storage::exists('public/' . ltrim($raw, '/'))) {
+                            $final = \Illuminate\Support\Facades\Storage::url(ltrim($raw, '/'));
+                        } elseif (\Illuminate\Support\Facades\Storage::exists(ltrim($raw, '/'))) {
+                            $final = \Illuminate\Support\Facades\Storage::url(ltrim($raw, '/'));
+                        } else {
+                            // Legacy fallback: files saved under public/uploads/public/category_images
+                            $basename = basename($raw);
+                            $legacyRel = 'uploads/public/category_images/' . $basename;
+                            if (file_exists(public_path($legacyRel))) {
+                                $final = '/' . $legacyRel;
+                            } else {
+                                // Fallback to serving as public path
+                                $final = '/' . ltrim($raw, '/');
+                            }
+                        }
                     }
-                    return $row->name;
+
+                    return '<img src="' . e($final) . '" alt="' . e($row->name) . '" onerror="this.onerror=null;this.src=\'' . e($defaultUrl) . '\';" style="height:32px;width:32px;object-fit:cover;border-radius:6px;" loading="lazy" />';
+                })
+                ->editColumn('name', function ($row) {
+                    $label = !empty($row->parent_name) ? ($row->parent_name . ' -> ' . $row->name) : $row->name;
+                    return e($label);
                 })
                 ->removeColumn('id')
                 ->removeColumn('parent_id')
-                ->rawColumns(['action'])
+                ->rawColumns(['action','image'])
                 ->make(true);
 
             }
@@ -160,6 +222,15 @@ class TaxonomyController extends Controller
             }
             $input['business_id'] = $request->session()->get('user.business_id');
             $input['created_by'] = $request->session()->get('user.id');
+
+            // handle image upload (optional)
+            if ($request->hasFile('image')) {
+                $request->validate([
+                    'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+                ]);
+                $path = $request->file('image')->store('public/category_images');
+                $input['image_path'] = Storage::url($path); // e.g. storage/category_images/...
+            }
 
             $category = Category::create($input);
             $output = ['success' => true,
@@ -254,6 +325,14 @@ class TaxonomyController extends Controller
                     $category->parent_id = $request->input('parent_id');
                 } else {
                     $category->parent_id = 0;
+                }
+                // handle image upload (optional)
+                if ($request->hasFile('image')) {
+                    $request->validate([
+                        'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+                    ]);
+                    $path = $request->file('image')->store('public/category_images');
+                    $category->image_path = Storage::url($path);
                 }
                 $category->save();
 

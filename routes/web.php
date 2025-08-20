@@ -7,6 +7,7 @@ use App\Http\Controllers\AccountTypeController;
 use App\Http\Controllers\BackUpController;
 use App\Http\Controllers\BarcodeController;
 use App\Http\Controllers\BrandController;
+use App\Http\Controllers\BannersController;
 use App\Http\Controllers\BusinessController;
 use App\Http\Controllers\BusinessLocationController;
 use App\Http\Controllers\CashRegisterController;
@@ -128,6 +129,7 @@ Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone', 
     Route::post('/user/update-password', [UserController::class, 'updatePassword'])->name('user.updatePassword');
 
     Route::resource('brands', BrandController::class);
+    Route::resource('banners', BannersController::class)->only(['index','create','store','edit','update','destroy','show']);
 
     Route::resource('payment-account', 'PaymentAccountController');
 
