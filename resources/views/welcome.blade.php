@@ -821,7 +821,7 @@
         @media (max-width: 480px) {
             .search-form { display: none; } /* hide search to save space */
             .hero { height: 260px; }
-            .featured-track .product-card { flex-basis: 100%; }
+            .featured-track .product-card { flex-basis: calc((100% - 1rem) / 2); }
             .footer-container { grid-template-columns: 1fr; }
             .badge { display: none; }
         }
