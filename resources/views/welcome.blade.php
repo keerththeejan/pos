@@ -42,36 +42,22 @@
             ->where('parent_id', 0)
             ->orderBy('name', 'asc')
             ->get(['id','name','image_path']);
-
-        // Build hero slides (validate URLs so image always shows)
-        $hero_slides = [];
-        foreach ($categories as $c) {
-            if (empty($c->image_path)) continue;
-            $url = isset($resolveCatImg) ? $resolveCatImg($c->image_path) : (\Illuminate\Support\Str::startsWith($c->image_path, ['http://', 'https://']) ? $c->image_path : \Storage::url($c->image_path));
-
-            // Accept absolute URLs; for relative URLs ensure the public file exists
-            $is_abs = \Illuminate\Support\Str::startsWith($url, ['http://', 'https://']);
-            $is_ok  = $is_abs || file_exists(public_path(ltrim($url, '/')));
-            if (!$is_ok) { continue; }
-
-            $hero_slides[] = ['img' => $url, 'name' => $c->name];
-            if (count($hero_slides) >= 3) break;
-        }
         
-        // Fallback stock images to guarantee visuals
-        if (count($hero_slides) < 3) {
-            $fallbacks = [
-                
-    ['img' => 'https://images.unsplash.com/photo-1511690743698-d9d85f2fbf38?w=1600&q=80&auto=format&fit=crop', 'name' => 'Fruits'],
-    ['img' => 'https://images.unsplash.com/photo-1506084868230-bb9d95c24759?w=1600&q=80&auto=format&fit=crop', 'name' => 'Vegetables'],
-    ['img' => 'https://images.unsplash.com/photo-1589923188900-85dae523342b?w=1600&q=80&auto=format&fit=crop', 'name' => 'Bakery'],
-    ['img' => 'https://images.unsplash.com/photo-1510626176961-4b57d4fbad03?w=1600&q=80&auto=format&fit=crop', 'name' => 'Dairy']
-]
-;
-            foreach ($fallbacks as $f) {
-                $hero_slides[] = $f;
-                if (count($hero_slides) >= 3) break;
-            }
+        // Build hero slides from ACTIVE banners (no stock fallbacks)
+        $hero_slides = [];
+        $banners = \App\Banner::where('is_active', 1)
+            ->orderByDesc('id')
+            ->get(['id','title','image']);
+        $bannerDir = \App\Banner::uploadDir();
+        foreach ($banners as $b) {
+            if (empty($b->image)) { continue; }
+            $path = trim($bannerDir, '/').'/'.ltrim($b->image, '/');
+            $url  = asset($path);
+            // Ensure the public file exists to avoid broken images
+            $ok = file_exists(public_path($path));
+            if (!$ok) { continue; }
+            $hero_slides[] = ['img' => $url, 'name' => $b->title ?? ''];
+            if (count($hero_slides) >= 3) break;
         }
         
         // Get products to showcase (latest active, for sale)
@@ -412,7 +398,7 @@
             color: black;
         }
         
-        .categories-scroller, .featured-grid, .brands-grid {
+        .categories-scroller, .featured-scroller, .brands-grid {
             background: white;
             border-radius: 1rem;
             box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
@@ -503,11 +489,29 @@
             text-align: center;
         }
         
-        /* Featured Products */
-        .featured-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 1.5rem;
+        /* Featured Products - single-row scroller */
+        .featured-scroller {
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding-bottom: 0.5rem;
+            margin-bottom: 0.5rem;
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none; /* Firefox */
+            ms-overflow-style: none; /* IE 10+ */
+            padding-left: 0.75rem; /* inset like categories */
+            padding-right: 0.25rem;
+        }
+        .featured-scroller::-webkit-scrollbar { display: none; }
+        .featured-track {
+            display: flex;
+            gap: 1rem;
+        }
+        .featured-track .product-card {
+            /* Exactly 4 cards per viewport width on desktop (gap = 1rem -> 3 gaps total = 3rem) */
+            flex: 0 0 calc((100% - 3rem) / 4);
+            max-width: none;
+            scroll-snap-align: start;
         }
         /* Exactly 4 per row on desktop */
         .categories-grid {
@@ -776,6 +780,50 @@
                 flex-basis: calc((100% - 1rem) / 2); /* match reduced gap */
                 max-width: none;
             }
+            .featured-track .product-card {
+                flex-basis: calc((100% - 1rem) / 2);
+                max-width: none;
+            }
+        }
+        /* Small screens */
+        @media (max-width: 640px) {
+            .navbar-container { padding-left: 0.75rem; padding-right: 0.75rem; gap: 0.75rem; }
+            .logo { font-size: 1.25rem; }
+            .navbar-right { gap: 0.5rem; }
+            /* Keep search compact */
+            .search-input { width: 10rem; }
+            .btn, .search-button { padding-left: 0.75rem; padding-right: 0.75rem; height: 2.25rem; }
+
+            .hero { height: 320px; }
+            .caption-text { font-size: 0.75rem; }
+            .hero-caption { gap: 0.5rem; }
+
+            .container { padding-left: 0.75rem; padding-right: 0.75rem; }
+            .categories-section, .featured-section, .brands-section { padding-top: 2rem; padding-bottom: 2rem; }
+
+            /* Cards smaller on mobile scrollers */
+            .category-card, .brand-card { width: 12rem; min-width: 12rem; height: 12rem; padding: 1rem; }
+            .category-icon, .brand-icon { width: 5rem; height: 5rem; }
+            .category-name, .brand-name { font-size: 1rem; }
+            .category-desc, .brand-desc { font-size: 0.8125rem; }
+
+            /* Featured: show 2 cards in viewport */
+            .featured-track .product-card { flex-basis: calc((100% - 1rem) / 2); }
+            .product-image { height: 180px; }
+            .product-info { padding: 1rem; }
+            .product-name, .product-price { font-size: 1.0625rem; }
+
+            /* Dropdowns become full-width panels */
+            .dropdown-content { position: static; width: 100%; max-height: 16rem; box-shadow: none; }
+        }
+
+        /* Extra small phones */
+        @media (max-width: 480px) {
+            .search-form { display: none; } /* hide search to save space */
+            .hero { height: 260px; }
+            .featured-track .product-card { flex-basis: 100%; }
+            .footer-container { grid-template-columns: 1fr; }
+            .badge { display: none; }
         }
     </style>
 
@@ -1063,7 +1111,8 @@
                 <h2>FEATURED PRODUCTS</h2>
             </div>
             
-            <div class="featured-grid">
+            <div class="featured-scroller">
+                <div class="featured-track">
                 @forelse($featured_products as $product)
                     <div class="product-card">
                         @php
@@ -1096,6 +1145,7 @@
                 @empty
                     <p>No featured products available</p>
                 @endforelse
+                </div>
             </div>
             
             <div class="view-all">

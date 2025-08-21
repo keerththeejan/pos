@@ -13,42 +13,54 @@
 
   <div class="box box-primary">
     <div class="box-body">
-      @if($banner)
+      <div class="row" style="margin-bottom:15px;">
+        <div class="col-md-12">
+          <a href="{{ route('banners.create') }}" class="btn btn-success">Add New Banner</a>
+        </div>
+      </div>
+
+      @if(isset($banners) && $banners->count())
         <div class="row">
-          <div class="col-md-12">
-            <h4>Title: {{ $banner->title ?? '-' }} | Active: {{ $banner->is_active ? 'Yes' : 'No' }}</h4>
+          @foreach($banners as $b)
+            <div class="col-md-4">
+              <div class="panel panel-default" style="border-radius:4px; overflow:hidden;">
+                <div class="panel-body" style="padding:0;">
+                  <div style="width:100%; height:180px; overflow:hidden; background:#f5f5f5; display:flex; align-items:center; justify-content:center;">
+                    <img src="{{ $b->image_url }}" alt="Banner" style="width:100%; height:180px; object-fit:cover; display:block;">
+                  </div>
+                  <div style="padding:12px;">
+                    <h4 style="margin-top:0;">{{ $b->title ?? '—' }}</h4>
+                    @if(!empty($b->description))
+                      <p class="text-muted" style="min-height:38px;">{{ \Illuminate\Support\Str::limit($b->description, 120) }}</p>
+                    @endif
+                    <p style="margin:0 0 10px 0;">ID: {{ $b->id }}</p>
+                    <p style="margin:0 0 10px 0;">Status: <span class="label label-{{ $b->is_active ? 'success' : 'default' }}">{{ $b->is_active ? 'Active' : 'Inactive' }}</span></p>
+                    <div>
+                      <a href="{{ route('banners.show', $b->id) }}" class="btn btn-info btn-sm">View</a>
+                      <a href="{{ route('banners.edit', $b->id) }}" class="btn btn-primary btn-sm">Edit</a>
+                      <form action="{{ route('banners.destroy', $b->id) }}" method="POST" style="display:inline-block;" onsubmit="return confirm('Delete banner?');">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          @endforeach
+        </div>
+
+        <div class="row">
+          <div class="col-md-12 text-center">
+            {{ $banners->links() }}
           </div>
         </div>
-        <div class="row" style="gap:20px;">
-          <div class="col-md-3 text-center">
-            <img src="{{ $banner->image1_url }}" class="img-responsive" style="max-height:150px;" alt="Image 1"/>
-            <p>Image 1</p>
-          </div>
-          <div class="col-md-3 text-center">
-            <img src="{{ $banner->image2_url }}" class="img-responsive" style="max-height:150px;" alt="Image 2"/>
-            <p>Image 2</p>
-          </div>
-          <div class="col-md-3 text-center">
-            <img src="{{ $banner->image3_url }}" class="img-responsive" style="max-height:150px;" alt="Image 3"/>
-            <p>Image 3</p>
-          </div>
-          <div class="col-md-3 text-center">
-            <img src="{{ $banner->image4_url }}" class="img-responsive" style="max-height:150px;" alt="Image 4"/>
-            <p>Image 4</p>
-          </div>
-        </div>
-        <br>
-        <a href="{{ route('banners.edit', $banner->id) }}" class="btn btn-primary">Edit</a>
-        <form action="{{ route('banners.destroy', $banner->id) }}" method="POST" style="display:inline-block;" onsubmit="return confirm('Delete banner?');">
-          @csrf
-          @method('DELETE')
-          <button type="submit" class="btn btn-danger">Delete</button>
-        </form>
       @else
-        <p>No banner created yet.</p>
-        <a href="{{ route('banners.create') }}" class="btn btn-success">Create Banner</a>
+        <p>No banners yet.</p>
       @endif
     </div>
   </div>
 </section>
 @endsection
+

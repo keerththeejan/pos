@@ -3,13 +3,30 @@
     <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
     <![endif]-->
     <style>
-        body {
-            background-color: #243949;
+        /* Force white background on auth pages */
+        html, body {
+            background: none !important;
+            background-color: #ffffff !important;
+            background-image: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            height: 100% !important;
+            min-height: 100vh !important;
+            width: 100% !important;
+            overflow-x: hidden !important;
         }
-
-        h1 {
-            color: #fff;
+        /* Ensure containers don't re-introduce background */
+        .container-fluid, .eq-height-row, .right-col {
+            background: none !important;
+            background-color: #ffffff !important;
+            background-image: none !important;
+            min-height: 100vh !important;
         }
+        /* Rows/columns should not show gaps */
+        .container-fluid { padding-left: 0 !important; padding-right: 0 !important; }
+        .row { margin-left: 0 !important; margin-right: 0 !important; }
+        [class*='col-'] { padding-left: 0 !important; padding-right: 0 !important; background-color: #ffffff !important; }
+        .right-col { padding: 0 !important; }
     </style>
 
     <style type="text/css">
@@ -77,15 +94,8 @@
             transform: rotate(315deg);
         }
     </style>
-    <style>
-        body {
-            background: linear-gradient(to right, #6366f1, #3b82f6);
-        }
-
-        h1 {
-            color: #fff;
-        }
-    </style>
+  
+    
     <style>
         .action-link[data-v-1552a5b6] {
             cursor: pointer;

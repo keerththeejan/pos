@@ -129,6 +129,9 @@
 
         @include('layouts.partials.javascripts')
 
+        {{-- Stack for view-specific scripts (e.g., @push('scripts')) --}}
+        @stack('scripts')
+
         <div class="modal fade view_modal" tabindex="-1" role="dialog" aria-labelledby="gridSystemModalLabel"></div>
 
         @if (!empty($__additional_views) && is_array($__additional_views))

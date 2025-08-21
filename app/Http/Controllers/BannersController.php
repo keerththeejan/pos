@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Banner;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Database\QueryException;
 
 class BannersController extends Controller
 {
@@ -15,17 +17,13 @@ class BannersController extends Controller
      */
     public function index()
     {
-        // Treat banners as a singleton configuration entry
-        $banner = Banner::first();
+        $banners = Banner::orderByDesc('id')->paginate(12);
 
-        // If you have a view, return it; otherwise return JSON for now
         if (view()->exists('banners.index')) {
-            return view('banners.index', compact('banner'));
+            return view('banners.index', compact('banners'));
         }
 
-        return response()->json([
-            'data' => $banner,
-        ]);
+        return response()->json(['data' => $banners]);
     }
 
     /**
@@ -35,7 +33,7 @@ class BannersController extends Controller
      */
     public function create()
     {
-        $banner = Banner::first();
+        $banner = null;
         if (view()->exists('banners.create')) {
             return view('banners.create', compact('banner'));
         }
@@ -50,38 +48,37 @@ class BannersController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'title' => ['nullable', 'string', 'max:255'],
-            'is_active' => ['nullable', 'boolean'],
-            'image1' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,webp', 'max:4096'],
-            'image2' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,webp', 'max:4096'],
-            'image3' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,webp', 'max:4096'],
-            'image4' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,webp', 'max:4096'],
-        ]);
+        try {
+            $validated = $request->validate([
+                'title' => ['nullable', 'string', 'max:255'],
+                'description' => ['nullable', 'string'],
+                'is_active' => ['nullable', 'boolean'],
+                'image' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,webp', 'max:4096'],
+            ]);
 
-        $banner = Banner::firstOrCreate([], [
-            'title' => $validated['title'] ?? null,
-            'is_active' => $request->boolean('is_active', true),
-        ]);
+            $banner = new Banner();
+            $banner->title = $validated['title'] ?? null;
+            $banner->description = $validated['description'] ?? null;
+            $banner->is_active = $request->boolean('is_active', true);
 
-        // Upload images and update paths
-        $updates = [
-            'title' => $validated['title'] ?? $banner->title,
-            'is_active' => $request->boolean('is_active', $banner->is_active ?? true),
-        ];
-
-        foreach (['image1', 'image2', 'image3', 'image4'] as $key) {
-            $new = $this->saveImage($request, $key);
+            $new = $this->saveImage($request, 'image');
             if ($new) {
-                // delete old if exists
-                $this->deleteImageQuietly($banner->{$key});
-                $updates[$key] = $new;
+                $banner->image = $new;
             }
+
+            $banner->save();
+
+            return redirect()->route('banners.index')
+                ->with('status', 'Banner created successfully');
+        } catch (QueryException $e) {
+            Log::error('Banner store failed (DB)', ['message' => $e->getMessage()]);
+            $msg = app()->environment('local') ? $e->getMessage() : 'Save failed due to database error.';
+            return back()->withErrors(['error' => $msg])->withInput();
+        } catch (\Throwable $e) {
+            Log::error('Banner store failed', ['message' => $e->getMessage()]);
+            $msg = app()->environment('local') ? $e->getMessage() : 'Save failed. Please check fields and try again.';
+            return back()->withErrors(['error' => $msg])->withInput();
         }
-
-        $banner->update($updates);
-
-        return back()->with('status', 'Banners saved');
     }
 
     /**
@@ -118,31 +115,38 @@ class BannersController extends Controller
      */
     public function update(Request $request, Banner $banner)
     {
-        $validated = $request->validate([
-            'title' => ['nullable', 'string', 'max:255'],
-            'is_active' => ['nullable', 'boolean'],
-            'image1' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,webp', 'max:4096'],
-            'image2' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,webp', 'max:4096'],
-            'image3' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,webp', 'max:4096'],
-            'image4' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,webp', 'max:4096'],
-        ]);
+        try {
+            $validated = $request->validate([
+                'title' => ['nullable', 'string', 'max:255'],
+                'description' => ['nullable', 'string'],
+                'is_active' => ['nullable', 'boolean'],
+                'image' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,webp', 'max:4096'],
+            ]);
 
-        $updates = [
-            'title' => $validated['title'] ?? $banner->title,
-            'is_active' => $request->boolean('is_active', $banner->is_active),
-        ];
+            $updates = [
+                'title' => $validated['title'] ?? $banner->title,
+                'description' => $validated['description'] ?? $banner->description,
+                'is_active' => $request->boolean('is_active', $banner->is_active),
+            ];
 
-        foreach (['image1', 'image2', 'image3', 'image4'] as $key) {
-            $new = $this->saveImage($request, $key);
+            $new = $this->saveImage($request, 'image');
             if ($new) {
-                $this->deleteImageQuietly($banner->{$key});
-                $updates[$key] = $new;
+                $this->deleteImageQuietly($banner->image);
+                $updates['image'] = $new;
             }
+
+            $banner->update($updates);
+
+            return back()->with('status', 'Banners updated');
+        } catch (QueryException $e) {
+            Log::error('Banner update failed (DB)', ['message' => $e->getMessage()]);
+            $msg = app()->environment('local') ? $e->getMessage() : 'Update failed due to database error.';
+            return back()->withErrors(['error' => $msg])->withInput();
+        } catch (\Throwable $e) {
+            Log::error('Banner update failed', ['message' => $e->getMessage()]);
+            $msg = app()->environment('local') ? $e->getMessage() : 'Update failed. Please check fields and try again.';
+            return back()->withErrors(['error' => $msg])->withInput();
         }
-
-        $banner->update($updates);
-
-        return back()->with('status', 'Banners updated');
     }
 
     /**
@@ -153,9 +157,7 @@ class BannersController extends Controller
      */
     public function destroy(Banner $banner)
     {
-        foreach (['image1', 'image2', 'image3', 'image4'] as $key) {
-            $this->deleteImageQuietly($banner->{$key});
-        }
+        $this->deleteImageQuietly($banner->image);
         $banner->delete();
         return back()->with('status', 'Banners deleted');
     }
@@ -177,8 +179,11 @@ class BannersController extends Controller
         if (! File::exists($dir)) {
             File::makeDirectory($dir, 0775, true, true);
         }
+        if (! is_dir($dir) || ! is_writable($dir)) {
+            throw new \RuntimeException('Upload directory is not writable: ' . $dir);
+        }
 
-        $name = uniqid($field . '_') . '.' . $file->getClientOriginalExtension();
+        $name = uniqid('banner_') . '.' . $file->getClientOriginalExtension();
         $file->move($dir, $name);
         return $name;
     }

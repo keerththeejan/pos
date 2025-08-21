@@ -39,12 +39,15 @@ class BrandController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        if (request()->ajax()) {
+        if (request()->ajax() || request()->wantsJson() || request()->has('draw')) {
             $business_id = request()->session()->get('user.business_id');
 
             $select = ['id', 'name', 'description'];
             if (Schema::hasColumn('brands', 'image_path')) {
                 $select[] = 'image_path';
+            }
+            if (Schema::hasColumn('brands', 'image')) {
+                $select[] = 'image';
             }
 
             $brands = Brands::where('business_id', $business_id)
@@ -53,10 +56,15 @@ class BrandController extends Controller
             return DataTables::of($brands)
                 ->addColumn('image', function ($row) {
                     $src = null;
-                    if (isset($row->image_path) && !empty($row->image_path)) {
+                    // Preferred: storage path
+                    if (!empty($row->image_path)) {
                         $src = Str::startsWith($row->image_path, ['http://', 'https://'])
                             ? $row->image_path
                             : Storage::url($row->image_path);
+                    }
+                    // Legacy: image filename under public/uploads/brand_images
+                    if (empty($src) && !empty($row->image)) {
+                        $src = asset('uploads/brand_images/' . ltrim($row->image, '/'));
                     }
                     if (empty($src)) {
                         $src = asset('img/default.png');
@@ -123,6 +131,13 @@ class BrandController extends Controller
 
             if ($this->moduleUtil->isModuleInstalled('Repair')) {
                 $input['use_for_repair'] = ! empty($request->input('use_for_repair')) ? 1 : 0;
+            }
+
+            // Handle image upload if provided
+            if ($request->hasFile('image') && $request->file('image')->isValid()) {
+                // Store under public disk so Storage::url() works
+                $path = $request->file('image')->store('brands', 'public');
+                $input['image_path'] = $path;
             }
 
             $brand = Brands::create($input);
@@ -200,6 +215,13 @@ class BrandController extends Controller
                 if ($this->moduleUtil->isModuleInstalled('Repair')) {
                     $brand->use_for_repair = ! empty($request->input('use_for_repair')) ? 1 : 0;
                 }
+                // If new image uploaded, replace and remove old if exists
+                if ($request->hasFile('image') && $request->file('image')->isValid()) {
+                    if (!empty($brand->image_path) && Storage::disk('public')->exists($brand->image_path)) {
+                        Storage::disk('public')->delete($brand->image_path);
+                    }
+                    $brand->image_path = $request->file('image')->store('brands', 'public');
+                }
 
                 $brand->save();
 
@@ -235,6 +257,10 @@ class BrandController extends Controller
                 $business_id = request()->user()->business_id;
 
                 $brand = Brands::where('business_id', $business_id)->findOrFail($id);
+                // Remove image file if exists
+                if (!empty($brand->image_path) && Storage::disk('public')->exists($brand->image_path)) {
+                    Storage::disk('public')->delete($brand->image_path);
+                }
                 $brand->delete();
 
                 $output = ['success' => true,

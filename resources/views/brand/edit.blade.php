@@ -25,7 +25,7 @@
           <small class="help-block">PNG, JPG up to ~2MB</small>
           <div class="tw-mt-2 js-image-preview">
             @if(!empty($brand->image_path))
-              <img src="{{ asset('uploads/brand_images/' . $brand->image_path) }}" alt="{{ $brand->name }}" style="max-height:80px;border-radius:6px" onerror="this.style.display='none'">
+              <img src="{{ asset('storage/' . $brand->image_path) }}" alt="{{ $brand->name }}" style="max-height:80px;border-radius:6px" onerror="this.style.display='none'">
             @endif
           </div>
       </div>

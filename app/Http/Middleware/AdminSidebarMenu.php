@@ -6,6 +6,7 @@ use App\Utils\ModuleUtil;
 use Closure;
 use Menu;
 use Modules\CustomDashboard\Entities\CustomDashboard;
+// use App\Banner; // not used
 
 class AdminSidebarMenu
 {
@@ -799,11 +800,28 @@ class AdminSidebarMenu
                   </svg>', 'active' => request()->segment(1) == 'notification-templates'])->order(80);
             }
 
-            //Banners menu (above Settings)
-            $menu->url(action([\App\Http\Controllers\BannersController::class, 'index']), __('Banners'), [
-                'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="tw-size-5 tw-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H4z"/><path d="M4 16l4-4 3 3 5-5 4 4"/></svg>',
-                'active' => request()->segment(1) == 'banners'
-            ])->order(83);
+            //Banners dropdown (above Settings)
+            $menu->dropdown(
+                __('Banners'),
+                function ($sub) {
+                    // Add Banner
+                    $sub->url(
+                        action([\App\Http\Controllers\BannersController::class, 'create']),
+                        __('Add Banner'),
+                        ['icon' => '', 'active' => request()->segment(1) == 'banners' && request()->segment(2) == 'create']
+                    );
+                    // Update Banner → go to index list (no DB call here)
+                    $sub->url(
+                        action([\App\Http\Controllers\BannersController::class, 'index']),
+                        __('Update Banner'),
+                        ['icon' => '', 'active' => request()->segment(1) == 'banners' && !request()->segment(2)]
+                    );
+                },
+                [
+                    'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="tw-size-5 tw-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H4z"/><path d="M4 16l4-4 3 3 5-5 4 4"/></svg>',
+                    'active' => request()->segment(1) == 'banners'
+                ]
+            )->order(83);
 
             //Settings Dropdown
             if (auth()->user()->can('business_settings.access') ||
@@ -889,6 +907,17 @@ class AdminSidebarMenu
                   </svg>', 'id' => 'tour_step3']
                 )->order(85);
             }
+
+            // Standalone Back to Home (below Settings)
+            $menu->url(
+                url('/'),
+                __('Back to Home'),
+                [
+                    'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="tw-size-5 tw-shrink-0" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M5 12l-2 0l9 -9l9 9l-2 0" /><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7" /><path d="M10 12h4v4h-4z" /></svg>',
+                    'active' => request()->is('/')
+                ]
+            )->order(86);
+            
         });
 
         //Add menus from modules

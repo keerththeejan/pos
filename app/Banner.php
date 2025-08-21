@@ -14,18 +14,16 @@ class Banner extends Model
      */
     protected $fillable = [
         'title',
+        'description',
         'is_active',
-        'image1',
-        'image2',
-        'image3',
-        'image4',
+        'image',
     ];
 
     /**
-     * Appended attributes for URLs with fallback.
+     * Appended attributes for URL with fallback.
      */
     protected $appends = [
-        'image1_url', 'image2_url', 'image3_url', 'image4_url',
+        'image_url',
     ];
 
     /**
@@ -44,23 +42,8 @@ class Banner extends Model
         return 'img/default.png';
     }
 
-    public function getImage1UrlAttribute(): string
+    public function getImageUrlAttribute(): string
     {
-        return $this->image1 ? asset(self::uploadDir() . '/' . $this->image1) : asset(self::fallbackImage());
-    }
-
-    public function getImage2UrlAttribute(): string
-    {
-        return $this->image2 ? asset(self::uploadDir() . '/' . $this->image2) : asset(self::fallbackImage());
-    }
-
-    public function getImage3UrlAttribute(): string
-    {
-        return $this->image3 ? asset(self::uploadDir() . '/' . $this->image3) : asset(self::fallbackImage());
-    }
-
-    public function getImage4UrlAttribute(): string
-    {
-        return $this->image4 ? asset(self::uploadDir() . '/' . $this->image4) : asset(self::fallbackImage());
+        return $this->image ? asset(self::uploadDir() . '/' . $this->image) : asset(self::fallbackImage());
     }
 }

@@ -49,14 +49,19 @@ $(document).ready(function() {
         });
     });
 
-    $(document).on('submit', 'form#brand_add_form', function(e) {
+    function submitBrandForm(e, formElem){
         e.preventDefault();
-        var form = $(this);
-        var data = new FormData(this);
+        var form = $(formElem);
+        var data = new FormData(form[0]);
+        // Ensure file is included if selected
+        var fileInput = form.find('input[type="file"][name="image"]')[0];
+        if (fileInput && fileInput.files && fileInput.files[0]) {
+            data.set('image', fileInput.files[0]);
+        }
 
         $.ajax({
             method: 'POST',
-            url: $(this).attr('action'),
+            url: form.attr('action'),
             dataType: 'json',
             data: data,
             processData: false,
@@ -73,14 +78,19 @@ $(document).ready(function() {
                     }
                     var evt = new CustomEvent("brandAdded", {detail: result.data});
                     window.dispatchEvent(evt);
-                    //event can be listened as
-                    //window.addEventListener("brandAdded", function(evt) {}
-                    
                 } else {
                     toastr.error(result.msg);
                 }
             },
         });
+    }
+
+    $(document).on('submit', 'form#brand_add_form', function(e) {
+        submitBrandForm(e, this);
+    });
+
+    $(document).on('submit', 'form#quick_add_brand_form', function(e){
+        submitBrandForm(e, this);
     });
 
     // Handle image preview for brand forms
@@ -102,11 +112,27 @@ $(document).ready(function() {
     });
 
     //Brands table
-    var brands_table = $('#brands_table').DataTable({
+    var $brandsTable = $('#brands_table');
+    var brandsSource = $brandsTable.data('source') || '/brands';
+    var brands_table = $brandsTable.DataTable({
         processing: true,
         serverSide: true,
         fixedHeader:false,
-        ajax: '/brands',
+        ajax: {
+            url: brandsSource,
+            type: 'GET',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            dataSrc: function(json){
+                // Expect Yajra format: {data: [...], draw, recordsTotal, recordsFiltered}
+                if(json && typeof json.data !== 'undefined') return json.data;
+                // Fallback to empty to avoid DataTables errors
+                return [];
+            },
+            error: function(xhr){
+                console.error('Brands ajax error:', xhr.status, xhr.responseText);
+                toastr.error('Failed to load brands. Check server logs.');
+            }
+        },
         columns: [
             { data: 'name', name: 'name', defaultContent: '' },
             { data: 'description', name: 'description', orderable: false, searchable: false, defaultContent: '' },

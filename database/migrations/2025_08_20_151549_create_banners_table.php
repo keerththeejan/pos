@@ -13,18 +13,18 @@ return new class extends Migration
      */
     public function up()
     {
+        // Table already created by an earlier migration
+        if (Schema::hasTable('banners')) {
+            return;
+        }
         Schema::create('banners', function (Blueprint $table) {
             $table->id();
-            // Optional basic fields
             $table->string('title')->nullable();
             $table->boolean('is_active')->default(true);
-
-            // Four optional image filenames (stored under public/uploads/banners)
             $table->string('image1')->nullable();
             $table->string('image2')->nullable();
             $table->string('image3')->nullable();
             $table->string('image4')->nullable();
-
             $table->timestamps();
         });
     }

@@ -36,7 +36,7 @@
             @endcan
             @can('brand.view')
                 <div class="table-responsive">
-                    <table class="table table-bordered table-striped" id="brands_table">
+                    <table class="table table-bordered table-striped" id="brands_table" data-source="{{ action([\App\Http\Controllers\BrandController::class, 'index']) }}">
                         <thead>
                             <tr>
                                 <th>@lang('brand.brands')</th>
