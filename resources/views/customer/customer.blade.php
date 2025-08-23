@@ -5,8 +5,6 @@
 @section('no_top_padding', true)
 @section('content')
 
-    @php $only_featured = ($request->query('only') === 'featured'); @endphp
-
     @php
         // Live data for header dropdowns
         $header_categories = \App\Category::where('category_type', 'product')
@@ -66,7 +64,7 @@
         // Note: 'featured' column doesn't exist on products. Use latest active items instead.
         $featured_products = \App\Product::active()
             ->productForSales()
-            ->with(['variations.variation_location_details'])
+            ->with(['variations'])
             ->latest('id')
             ->limit(8)
             ->get();
@@ -108,13 +106,6 @@
     @endphp
 
     <style>
-        @if($only_featured)
-        /* When only featured requested, hide other major sections but keep navbar */
-        .hero, .categories-section, .brands-section, .footer { display: none !important; }
-        /* Hide the 'View All Products' button */
-        .featured-section .view-all { display: none !important; }
-        body { background: #fff; }
-        @endif
         * {
             margin: 0;
             padding: 0;
@@ -228,6 +219,9 @@
             background-color: #f9fafb;
             color: #111827;
         }
+
+        /* Right aligned dropdown (for Account menu) */
+        .dropdown-right .dropdown-content { right: 0; left: auto; }
         
         .badge {
             display: inline-flex;
@@ -260,9 +254,6 @@
             align-items: center;
             gap: 1rem;
         }
-        /* Cart badge */
-        .cart-badge { position: relative; display:inline-block; }
-        .cart-badge .count { position:absolute; top:-6px; right:-8px; background:#ef4444; color:#fff; font-size:.7rem; line-height:1; padding:.18rem .35rem; border-radius:9999px; min-width:16px; text-align:center; }
         
         .btn {
             display: inline-flex;
@@ -588,8 +579,6 @@
             overflow: hidden;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
             transition: transform 0.3s ease;
-            position: relative; /* allow fixed footer inside */
-            padding-bottom: 64px; /* space for fixed action bar */
         }
         
         .product-card:hover {
@@ -606,40 +595,6 @@
         .product-info {
             padding: 1.25rem; /* was 1rem */
         }
-
-        /* Fixed action bar on product card (bottom) */
-        .card-action-fixed {
-            position: absolute;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            padding: 0.75rem;
-            background: #fff;
-            border-top: 1px solid #e5e7eb;
-        }
-        .card-action-fixed .btn {
-            width: 100%;
-            height: 2.75rem;
-            background: #2563eb; /* blue-600 */
-            color: #fff;
-            font-weight: 600;
-        }
-        .card-action-fixed .btn:hover { background: #1d4ed8; }
-
-        /* Price/stock row styles like screenshot */
-        .meta-row { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-top: .25rem; }
-        .price-strong { font-size: 1.125rem; font-weight: 800; color: #111827; }
-        .stock-wrap { text-align: right; }
-        .stock-badge { display:inline-block; background:#10b981; color:#fff; font-weight:700; font-size:.8125rem; padding:.125rem .5rem; border-radius:.5rem; }
-        .stock-sub { color:#6b7280; font-size:.8125rem; margin-top:.25rem; }
-
-        /* Qty group inside fixed bar */
-        .qty-row { display:flex; gap:.5rem; }
-        .qty-group { display:inline-flex; align-items:center; border:1px solid #d1d5db; border-radius:.375rem; overflow:hidden; }
-        .qty-btn { width:36px; height:36px; display:grid; place-items:center; background:#f9fafb; border:none; cursor:pointer; }
-        .qty-input { width:56px; height:36px; text-align:center; border:none; border-left:1px solid #e5e7eb; border-right:1px solid #e5e7eb; }
-        .qty-btn:active { background:#e5e7eb; }
-        .qty-row .btn { flex:1; display:inline-flex; align-items:center; justify-content:center; gap:.5rem; }
         
         .product-name {
             font-size: 1.25rem; /* was 1.125rem */
@@ -775,12 +730,6 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
-
-        /* Toast notification near cart icon */
-        .toast-wrap { position: fixed; top: 78px; right: 16px; z-index: 60; display: grid; gap: .5rem; }
-        .toast { background:#111827; color:#fff; border-radius:.5rem; padding:.75rem 1rem; box-shadow:0 10px 25px rgba(0,0,0,.25); min-width: 260px; animation: slideIn .25s ease; }
-        .toast a { color:#93c5fd; text-decoration: underline; }
-        @keyframes slideIn { from { opacity:0; transform: translateY(-6px);} to { opacity:1; transform:none; } }
         
         /* Search form */
         .search-form {
@@ -1014,39 +963,60 @@
             <!-- Right: Dashboard/Login + Cart -->
             <div class="navbar-right">
                 @if(Auth::check() || Auth::guard('customer')->check())
-                    <a href="{{ Auth::guard('customer')->check() ? url('/') : url('/home') }}" style="color: #1f2937;">Dashboard</a>
                     @if(Auth::guard('customer')->check())
                         @php $cu = Auth::guard('customer')->user(); @endphp
-                        <a href="{{ url('/') }}" style="color:#1f2937; margin-left:12px; font-weight:600;">
-                            {{ $cu->username ?? $cu->email ?? 'Account' }}
-                        </a>
+                        <!-- Account dropdown for logged-in customers -->
+                        <div class="dropdown dropdown-right">
+                            <button class="dropdown-btn" aria-haspopup="true" aria-expanded="false" style="font-weight:600;">
+                                {{ $cu->username ?? $cu->email ?? 'My Account' }}
+                                <svg style="width: 1rem; height: 1rem;" viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M5.23 7.21a.75.75 0 011.06.02L10 11.188l3.71-3.957a.75.75 0 111.08 1.04l-4.24 4.52a.75.75 0 01-1.08 0l-4.24-4.52a.75.75 0 01.02-1.06z"/>
+                                </svg>
+                            </button>
+                            <div class="dropdown-content">
+                                <ul style="padding-top: 0.25rem; padding-bottom: 0.25rem;">
+                                    <li><a class="dropdown-item" href="{{ url('/customer') }}">My Account</a></li>
+                                    <li><a class="dropdown-item" href="{{ url('/') }}">Dashboard</a></li>
+                                    <li><a class="dropdown-item" href="{{ url('/my-orders') }}">My Orders</a></li>
+                                    <li><a class="dropdown-item" href="#">Invoices</a></li>
+                                    <li><a class="dropdown-item" href="#">Order Templates</a></li>
+                                    <li><a class="dropdown-item" href="#">Speed Order</a></li>
+                                    <li><a class="dropdown-item" href="#">Addresses</a></li>
+                                    <li><a class="dropdown-item" href="#">Personal Settings</a></li>
+                                    <li>
+                                        <form method="POST" action="{{ route('customer.logout') }}" style="margin:0;">
+                                            @csrf
+                                            <button type="submit" class="dropdown-item" style="width:100%; text-align:left; background:none; border:none; cursor:pointer;">Logout</button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
                     @else
-                        <a href="{{ route('customer.login.show') }}" style="color:#1f2937; margin-left:12px;">Login</a>
+                        <!-- App user/staff: show Dashboard link -->
+                        <a href="{{ url('/home') }}" style="color: #1f2937;">Dashboard</a>
+                        <a href="{{ url('/login') }}" style="color:#1f2937; margin-left:12px;">Login</a>
                     @endif
                 @else
                     <div class="auth-buttons">
-                        <a href="{{ route('customer.login.show') }}" class="btn btn-outline">Login</a>
+                        <a href="{{ url('/login') }}" class="btn btn-outline">Login</a>
                         <a href="{{ url('/register') }}" class="btn btn-primary">Register</a>
                     </div>
                 @endif
-                <a id="nav-cart" href="{{ url('/cart') }}" title="Cart" class="cart-badge" style="color:#1f2937; display:inline-flex; align-items:center; position:relative;">
+
+                <a href="{{ url('/cart') }}" title="Cart" style="color:#1f2937; display:inline-flex; align-items:center;">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="9" cy="21" r="1"></circle>
                         <circle cx="20" cy="21" r="1"></circle>
                         <path d="M1 1h4l2.68 12.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
                     </svg>
-                    <span id="cart-count" class="count" style="display:none;">0</span>
                 </a>
             </div>
         </div>
     </div>
 
-    
-
     <!-- Spacer to offset fixed navbar height -->
     <div class="nav-spacer"></div>
-    <!-- Toast container -->
-    <div id="toastWrap" class="toast-wrap" style="display:none;"></div>
 
     @php
         $first_hero = (!empty($hero_slides) && isset($hero_slides[0]))
@@ -1080,21 +1050,6 @@
                 } catch (e) { /* no-op */ }
             });
         </script>
-    <script>
-        // Minimal qty increment/decrement inside featured cards
-        document.addEventListener('click', function(e){
-            const btn = e.target.closest('.qty-btn');
-            if(!btn) return;
-            const wrap = btn.closest('.qty-group');
-            const input = wrap ? wrap.querySelector('.qty-input') : null;
-            if(!input) return;
-            const inc = btn.textContent.trim() === '+';
-            let val = parseInt(input.value || '1', 10);
-            if(isNaN(val) || val < 1) val = 1;
-            val = inc ? val + 1 : Math.max(1, val - 1);
-            input.value = val;
-        });
-    </script>
         @endif
         <!-- Hero banner -->
         <section class="hero">
@@ -1105,7 +1060,6 @@
                 <span class="caption-line"></span>
             </div>
         </section>
-        
 
     @if($categories->count())
         <div class="categories-section">
@@ -1202,64 +1156,25 @@
                             // Compute display price from variations
                             $price = 0;
                             $purchase = 0;
-                            $stockQty = 0;
                             if ($product->relationLoaded('variations') && $product->variations->isNotEmpty()) {
                                 $v = $product->variations
                                     ->sortBy(function($x){ return is_null($x->sell_price_inc_tax) ? INF : $x->sell_price_inc_tax; })
                                     ->first();
                                 $price = ($v->sell_price_inc_tax ?? $v->default_sell_price ?? 0);
                                 $purchase = ($v->dpp_inc_tax ?? $v->default_purchase_price ?? 0);
-                                // Sum stock across all variations & locations
-                                foreach ($product->variations as $vv) {
-                                    if ($vv->relationLoaded('variation_location_details') && $vv->variation_location_details) {
-                                        foreach ($vv->variation_location_details as $vld) {
-                                            $stockQty += (float) ($vld->qty_available ?? 0);
-                                        }
-                                    }
-                                }
                             }
-                            $manages_stock = (isset($product->enable_stock) && (int) $product->enable_stock === 1);
-                            $in_stock = $manages_stock ? ($stockQty > 0) : true;
-                            $stockValue = $purchase * $stockQty;
                         @endphp
                         <img src="{{ $product_img }}" alt="{{ $product->name }}" class="product-image" onerror="this.src='https://via.placeholder.com/300x200?text=Image+Error'">
                         <div class="product-info">
                             <h3 class="product-name">{{ $product->name }}</h3>
-                            <div style="color:#6b7280; font-weight:600; margin-bottom:.5rem;">Purchase: CHF {{ number_format($purchase, 2) }}</div>
-                            <div class="meta-row">
-                                <div class="price-strong">CHF {{ number_format($price, 2) }}</div>
-                                <div class="stock-wrap">
-                                    <span class="stock-badge" style="background: {{ $in_stock ? '#10b981' : '#ef4444' }};">{{ $in_stock ? 'In Stock' : 'Out of Stock' }}</span>
-                                    <div class="stock-sub">
-                                        @if($manages_stock)
-                                            Stock: {{ number_format($stockQty, 0) }} units<br>
-                                            Value: CHF {{ number_format($stockValue, 2) }}
-                                        @else
-                                            Stock not tracked
-                                        @endif
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card-action-fixed">
-                            <div class="qty-row">
-                                <div class="qty-group" data-pid="{{ $product->id }}">
-                                    <button type="button" class="qty-btn" aria-label="Decrease">-</button>
-                                    <input class="qty-input" type="number" min="1" value="1">
-                                    <button type="button" class="qty-btn" aria-label="Increase">+</button>
-                                </div>
-                                @guest
-                                    <a href="{{ url('/login') }}" class="btn">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 12.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
-                                        Add to Cart
-                                    </a>
-                                @else
-                                    <button type="button" class="btn add-to-cart-btn" data-pid="{{ $product->id }}" data-available="{{ $in_stock ? 1 : 0 }}" @if($manages_stock && !$in_stock) disabled aria-disabled="true" @endif>
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 12.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
-                                        Add to Cart
-                                    </button>
-                                @endguest
-                            </div>
+                            <div class="product-price">Selling: ${{ number_format($price, 2) }}</div>
+                            <div class="product-price" style="color:#6b7280; font-weight:600;">Purchase: ${{ number_format($purchase, 2) }}</div>
+                            {{-- Stock display omitted by default; enable when per-location stock is available --}}
+                            @guest
+                                <a href="{{ url('/login') }}" class="btn btn-secondary" style="width: 100%;">Login to Buy</a>
+                            @else
+                                <a href="{{ url('/products/'.$product->id) }}" class="btn btn-primary" style="width: 100%;">Buy Now</a>
+                            @endguest
                         </div>
                     </div>
                 @empty
@@ -1389,129 +1304,6 @@
                 }, 4000);
             })();
         @endif
-    </script>
-
-    <script>
-        // Add to Cart: AJAX + Toast + Cart badge update
-        (function(){
-            function getCsrfToken(){
-                var m = document.querySelector('meta[name="csrf-token"]');
-                return m ? m.getAttribute('content') : '';
-            }
-
-            function showToast(message, opts){
-                opts = opts || {};
-                var wrap = document.getElementById('toastWrap');
-                if(!wrap) return;
-                wrap.style.display = 'grid';
-
-                var el = document.createElement('div');
-                el.className = 'toast';
-                el.innerHTML = opts.linkHref
-                    ? (message + ' <a href="' + opts.linkHref + '">' + (opts.linkText || 'View Order Details') + '</a>')
-                    : message;
-                wrap.appendChild(el);
-
-                setTimeout(function(){
-                    if (el && el.parentNode) {
-                        el.parentNode.removeChild(el);
-                    }
-                    // Hide container if empty
-                    if (wrap.children.length === 0) {
-                        wrap.style.display = 'none';
-                    }
-                }, opts.duration || 4000);
-            }
-
-            function setCartBadge(total){
-                var badge = document.getElementById('cart-count');
-                if(!badge) return;
-                var val = Math.max(0, parseInt(total, 10) || 0);
-                badge.textContent = String(val);
-                badge.style.display = val > 0 ? 'inline-block' : 'none';
-            }
-
-            function updateCartBadge(delta){
-                var badge = document.getElementById('cart-count');
-                if(!badge) return;
-                var current = parseInt((badge.textContent || '0').trim(), 10);
-                if (isNaN(current)) current = 0;
-                var next = Math.max(0, current + (parseInt(delta,10) || 0));
-                setCartBadge(next);
-            }
-
-            document.addEventListener('click', function(e){
-                var btn = e.target.closest('.add-to-cart-btn');
-                if(!btn) return;
-
-                var pid = btn.getAttribute('data-pid');
-                if(!pid) return;
-
-                // Guard: prevent adding if out of stock
-                var available = btn.getAttribute('data-available');
-                if (String(available) === '0') {
-                    showToast('This item is out of stock.');
-                    return;
-                }
-
-                var card = btn.closest('.product-card');
-                var qtyInput = card ? card.querySelector('.qty-group .qty-input') : null;
-                var qty = parseInt(qtyInput && qtyInput.value ? qtyInput.value : '1', 10);
-                if (!qty || qty < 1) qty = 1;
-
-                var prodNameEl = card ? card.querySelector('.product-name') : null;
-                var prodName = prodNameEl ? prodNameEl.textContent.trim() : 'Product';
-
-                var origHtml = btn.innerHTML;
-                btn.disabled = true;
-                btn.innerHTML = '<span class="loading" aria-hidden="true"></span>'; // spinner defined in CSS
-
-                fetch('/cart/add', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': getCsrfToken(),
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    body: JSON.stringify({ product_id: pid, quantity: qty })
-                }).then(function(res){
-                    // Try to parse JSON, but don't depend on structure
-                    return res.json().catch(function(){ return {}; }).then(function(data){
-                        return { ok: res.ok, status: res.status, data: data };
-                    });
-                }).then(function(result){
-                    if (result.ok) {
-                        // If API returns updated cart count, use it; else increment locally
-                        var updated = result && result.data && (result.data.cart_count || result.data.count || result.data.items_count);
-                        if (typeof updated !== 'undefined') {
-                            setCartBadge(updated);
-                        } else {
-                            updateCartBadge(qty);
-                        }
-                        showToast(prodName + ' x' + qty + ' added to cart.', { linkHref: '/cart', linkText: 'View Order Details' });
-                    } else {
-                        var msg = (result && result.data && (result.data.message || result.data.error)) || 'Failed to add to cart';
-                        showToast(msg);
-                    }
-                }).catch(function(){
-                    showToast('Network error while adding to cart');
-                }).finally(function(){
-                    btn.disabled = false;
-                    btn.innerHTML = origHtml;
-                });
-            });
-
-            // Initialize badge from session cart on load
-            (function(){
-                var initial = parseInt('{{ array_sum((array) session('cart', [])) }}', 10);
-                if (!isNaN(initial) && initial > 0) {
-                    setCartBadge(initial);
-                } else {
-                    setCartBadge(0);
-                }
-            })();
-        })();
     </script>
 
 @endsection

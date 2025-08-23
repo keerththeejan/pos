@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\BusinessLocation;
 use App\User;
 use App\Utils\ModuleUtil;
+use App\Contact;
 use DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -138,6 +139,50 @@ class ManageUserController extends Controller
             $request['max_sales_discount_percent'] = ! is_null($request->input('max_sales_discount_percent')) ? $this->moduleUtil->num_uf($request->input('max_sales_discount_percent')) : null;
 
             $user = $this->moduleUtil->createUser($request);
+
+            // Sync to Contacts: ensure a customer contact exists with First Name, Email, Mobile
+            $business_id = $request->session()->get('user.business_id');
+            $creator_id = $request->session()->get('user.id');
+            $name = trim(($request->input('first_name') ?? '') . ' ' . ($request->input('last_name') ?? ''));
+            if ($name === '') {
+                $name = $request->input('surname') ?: ($request->input('username') ?: '');
+            }
+            $email = $request->input('email');
+            $mobile = $request->input('contact_number');
+
+            if (!empty($name) || !empty($email) || !empty($mobile)) {
+                $contact_q = Contact::where('business_id', $business_id)
+                    ->whereIn('type', ['customer', 'both']);
+                if (!empty($email)) {
+                    $contact_q = $contact_q->where(function ($q) use ($email, $mobile) {
+                        $q->where('email', $email);
+                        if (!empty($mobile)) {
+                            $q->orWhere('mobile', $mobile);
+                        }
+                    });
+                } elseif (!empty($mobile)) {
+                    $contact_q = $contact_q->where('mobile', $mobile);
+                }
+
+                $existing_contact = $contact_q->first();
+                if ($existing_contact) {
+                    $existing_contact->name = $name ?: $existing_contact->name;
+                    if (!empty($email)) $existing_contact->email = $email;
+                    if (!empty($mobile)) $existing_contact->mobile = $mobile;
+                    if (empty($existing_contact->type)) $existing_contact->type = 'customer';
+                    $existing_contact->save();
+                } else {
+                    Contact::create([
+                        'business_id' => $business_id,
+                        'type' => 'customer',
+                        'name' => $name ?: ($email ?: $mobile ?: 'Customer'),
+                        'email' => $email,
+                        'mobile' => $mobile,
+                        'created_by' => $creator_id,
+                        'contact_status' => 'active',
+                    ]);
+                }
+            }
 
             event(new UserCreatedOrModified($user, 'added'));
 
@@ -312,6 +357,50 @@ class ManageUserController extends Controller
                           ->findOrFail($id);
 
             $user->update($user_data);
+
+            // Sync to Contacts on update as well
+            $business_id = $request->session()->get('user.business_id');
+            $creator_id = $request->session()->get('user.id');
+            $name = trim(($request->input('first_name') ?? '') . ' ' . ($request->input('last_name') ?? ''));
+            if ($name === '') {
+                $name = $request->input('surname') ?: ($user->username ?: '');
+            }
+            $email = $request->input('email');
+            $mobile = $request->input('contact_number');
+
+            if (!empty($name) || !empty($email) || !empty($mobile)) {
+                $contact_q = Contact::where('business_id', $business_id)
+                    ->whereIn('type', ['customer', 'both']);
+                if (!empty($email)) {
+                    $contact_q = $contact_q->where(function ($q) use ($email, $mobile) {
+                        $q->where('email', $email);
+                        if (!empty($mobile)) {
+                            $q->orWhere('mobile', $mobile);
+                        }
+                    });
+                } elseif (!empty($mobile)) {
+                    $contact_q = $contact_q->where('mobile', $mobile);
+                }
+
+                $existing_contact = $contact_q->first();
+                if ($existing_contact) {
+                    $existing_contact->name = $name ?: $existing_contact->name;
+                    if (!empty($email)) $existing_contact->email = $email;
+                    if (!empty($mobile)) $existing_contact->mobile = $mobile;
+                    if (empty($existing_contact->type)) $existing_contact->type = 'customer';
+                    $existing_contact->save();
+                } else {
+                    Contact::create([
+                        'business_id' => $business_id,
+                        'type' => 'customer',
+                        'name' => $name ?: ($email ?: $mobile ?: 'Customer'),
+                        'email' => $email,
+                        'mobile' => $mobile,
+                        'created_by' => $creator_id,
+                        'contact_status' => 'active',
+                    ]);
+                }
+            }
             $role_id = $request->input('role');
             $user_role = $user->roles->first();
             $previous_role = ! empty($user_role->id) ? $user_role->id : 0;

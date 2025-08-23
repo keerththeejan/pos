@@ -132,7 +132,7 @@ class LoginController extends Controller
         }
 
         if ($user->user_type == 'user_customer') {
-            return 'contact/contact-dashboard';
+            return '/customer';
         }
 
         return '/home';

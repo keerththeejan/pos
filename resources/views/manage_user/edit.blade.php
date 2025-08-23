@@ -41,6 +41,13 @@
                 </div>
             </div>
 
+            <div class="col-md-4">
+                <div class="form-group">
+                  {!! Form::label('contact_number', __( 'lang_v1.mobile_number' ) . ':') !!}
+                    {!! Form::text('contact_number', $user->contact_number, ['class' => 'form-control', 'placeholder' => __( 'lang_v1.mobile_number' ) ]); !!}
+                </div>
+            </div>
+
             <div class="col-md-2">
                 <div class="form-group">
                   <div class="checkbox">

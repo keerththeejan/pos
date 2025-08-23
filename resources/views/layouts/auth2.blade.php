@@ -33,7 +33,10 @@
     @endif
     <div class="container-fluid">
         <div class="row eq-height-row">
-            <div class="col-md-12 col-sm-12 col-xs-12 right-col {{ View::hasSection('no_top_padding') ? 'tw-pt-0' : 'tw-pt-20' }} tw-pb-10 tw-px-5">
+            @if(request()->is('customer*'))
+                @include('layouts.partials.customer_sidebar_fixed')
+            @endif
+            <div class="col-md-12 col-sm-12 col-xs-12 right-col {{ View::hasSection('no_top_padding') ? 'tw-pt-0' : 'tw-pt-20' }} tw-pb-10 tw-px-5 @if(request()->is('customer*')) tw-ml-64 @endif">
                 <div class="row">
                     @php $hide_topbar = View::hasSection('hide_auth2_topbar'); @endphp
                     @unless($hide_topbar)

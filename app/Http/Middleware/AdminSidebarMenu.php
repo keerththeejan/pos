@@ -48,6 +48,20 @@ class AdminSidebarMenu
             <path d="M10 12h4v4h-4z" />
           </svg>', 'active' => request()->segment(1) == 'home'])->order(5);
 
+            // Personal Settings (My Profile)
+            $menu->url(
+                action([\App\Http\Controllers\UserController::class, 'getProfile']),
+                __('lang_v1.my_profile'),
+                [
+                    'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="tw-size-5 tw-shrink-0" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                        <path d="M12 7m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" />
+                        <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
+                    </svg>',
+                    'active' => request()->segment(1) == 'user' && request()->segment(2) == 'profile'
+                ]
+            )->order(8);
+
             //User management dropdown
             if (auth()->user()->can('user.view') || auth()->user()->can('user.create') || auth()->user()->can('roles.view')) {
                 $menu->dropdown(
@@ -908,6 +922,16 @@ class AdminSidebarMenu
                 )->order(85);
             }
 
+            // Standalone Order Details (above Back to Home)
+            $menu->url(
+                url('/order-details'),
+                __('Order Details'),
+                [
+                    'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="tw-size-5 tw-shrink-0" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 7h6"/><path d="M9 11h6"/><path d="M9 15h6"/><path d="M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2z"/></svg>',
+                    'active' => request()->segment(1) == 'order-details'
+                ]
+            )->order(86);
+
             // Standalone Back to Home (below Settings)
             $menu->url(
                 url('/'),
@@ -916,7 +940,7 @@ class AdminSidebarMenu
                     'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="tw-size-5 tw-shrink-0" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M5 12l-2 0l9 -9l9 9l-2 0" /><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7" /><path d="M10 12h4v4h-4z" /></svg>',
                     'active' => request()->is('/')
                 ]
-            )->order(86);
+            )->order(87);
             
         });
 

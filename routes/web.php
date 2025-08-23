@@ -61,6 +61,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\VariationTemplateController;
 use App\Http\Controllers\WarrantyController;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Request;
 
 /*
 |--------------------------------------------------------------------------
@@ -80,7 +81,382 @@ Route::middleware(['setData'])->group(function () {
         return view('welcome');
     });
 
+    // Public cart routes for storefront
+    Route::get('/cart', function (Request $request) {
+        $cart = (array) $request->session()->get('cart', []); // [product_id => qty]
+        $productIds = array_keys($cart);
+
+        $items = [];
+        $subtotal = 0.0;
+
+        if (!empty($productIds)) {
+            $products = \App\Product::whereIn('id', $productIds)
+                ->with(['variations.variation_location_details'])
+                ->get();
+
+            foreach ($products as $product) {
+                $qty = (int) ($cart[(string)$product->id] ?? $cart[$product->id] ?? 0);
+                if ($qty < 1) { continue; }
+
+                // choose a variation for price display
+                $variation = null;
+                if ($product->relationLoaded('variations') && $product->variations->isNotEmpty()) {
+                    $variation = $product->variations
+                        ->sortBy(function($x){ return is_null($x->sell_price_inc_tax) ? INF : $x->sell_price_inc_tax; })
+                        ->first();
+                }
+
+                $unit_price = 0.0;
+                if ($variation) {
+                    $unit_price = (float) ($variation->sell_price_inc_tax ?? $variation->default_sell_price ?? 0);
+                }
+
+                // stock left (sum across all variation location details)
+                $manages_stock = (isset($product->enable_stock) && (int)$product->enable_stock === 1);
+                $stock_left = null;
+                if ($manages_stock && $product->relationLoaded('variations')) {
+                    $sum = 0.0;
+                    foreach ($product->variations as $v) {
+                        if ($v->relationLoaded('variation_location_details')) {
+                            foreach ($v->variation_location_details as $d) {
+                                $sum += (float)($d->qty_available ?? 0);
+                            }
+                        }
+                    }
+                    $stock_left = $sum;
+                }
+
+                $line_total = $unit_price * $qty;
+                $subtotal += $line_total;
+
+                $items[] = [
+                    'product_id' => $product->id,
+                    'name' => $product->name,
+                    'image_url' => $product->image_url ?? asset('img/default.png'),
+                    'variation_name' => $variation ? ($variation->name ?: '') : '',
+                    'sku' => $variation ? ($variation->sub_sku ?: '') : '',
+                    'unit_price' => $unit_price,
+                    'quantity' => $qty,
+                    'line_total' => $line_total,
+                    'manages_stock' => $manages_stock,
+                    'stock_left' => $stock_left,
+                ];
+            }
+        }
+
+        $tax = 0.0; // simple cart: tax not calculated here
+        $total = $subtotal + $tax;
+
+        return view('customer.cart', [
+            'items' => $items,
+            'summary' => [
+                'subtotal' => $subtotal,
+                'tax' => $tax,
+                'total' => $total,
+            ],
+        ]);
+    })->name('cart.show');
+
+    Route::post('/cart/add', function (Request $request) {
+        $data = $request->validate([
+            'product_id' => ['required'],
+            'quantity' => ['nullable', 'integer', 'min:1']
+        ]);
+
+        $pid = (string)($data['product_id']);
+        $qty = (int)($data['quantity'] ?? 1);
+        if ($qty < 1) { $qty = 1; }
+
+        // Validate stock before adding
+        $product = \App\Product::with(['variations.variation_location_details'])->find($pid);
+        if (!$product) {
+            return response()->json(['success' => false, 'message' => 'Product not found'], 404);
+        }
+        $manages_stock = (isset($product->enable_stock) && (int)$product->enable_stock === 1);
+        if ($manages_stock) {
+            $stockQty = 0.0;
+            if ($product->relationLoaded('variations')) {
+                foreach ($product->variations as $v) {
+                    if ($v->relationLoaded('variation_location_details')) {
+                        foreach ($v->variation_location_details as $d) {
+                            $stockQty += (float)($d->qty_available ?? 0);
+                        }
+                    }
+                }
+            }
+            if ($stockQty <= 0 || $stockQty < $qty) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This item is out of stock.',
+                ], 422);
+            }
+        }
+
+        // Session-based simple cart: [ product_id => quantity ]
+        $cart = (array)($request->session()->get('cart', []));
+        $cart[$pid] = ($cart[$pid] ?? 0) + $qty;
+        $request->session()->put('cart', $cart);
+
+        $total = array_sum($cart);
+        return response()->json([
+            'success' => true,
+            'cart_count' => $total,
+        ]);
+    })->name('cart.add');
+
+    // Update quantity for a cart item
+    Route::post('/cart/update', function (Request $request) {
+        $data = $request->validate([
+            'product_id' => ['required'],
+            'quantity' => ['required','integer']
+        ]);
+        $pid = (string)$data['product_id'];
+        $qty = (int)$data['quantity'];
+
+        $cart = (array)$request->session()->get('cart', []);
+        if ($qty <= 0) {
+            unset($cart[$pid]);
+        } else {
+            $cart[$pid] = $qty;
+        }
+        $request->session()->put('cart', $cart);
+        return response()->json(['success'=>true, 'cart_count'=>array_sum($cart)]);
+    })->name('cart.update');
+
+    // Remove an item from cart
+    Route::post('/cart/remove', function (Request $request) {
+        $data = $request->validate(['product_id' => ['required']]);
+        $pid = (string)$data['product_id'];
+        $cart = (array)$request->session()->get('cart', []);
+        if (isset($cart[$pid])) unset($cart[$pid]);
+        $request->session()->put('cart', $cart);
+        return response()->json(['success'=>true, 'cart_count'=>array_sum($cart)]);
+    })->name('cart.remove');
+
+    // Clear cart
+    Route::post('/cart/clear', function (Request $request) {
+        $request->session()->forget('cart');
+        return response()->json(['success'=>true, 'cart_count'=>0]);
+    })->name('cart.clear');
+
+    // Checkout routes (public storefront)
+    Route::get('/order-details', function (Request $request) {
+        // Prefer explicit order_no from URL, else fallback to last session order
+        $orderNo = $request->query('order_no') ?: $request->session()->get('last_order_no');
+        $rows = [];
+        $subtotal = 0.0;
+        if ($orderNo) {
+            $rows = \App\OrderDetail::where('order_no', $orderNo)->get();
+            foreach ($rows as $r) {
+                $subtotal += (float) $r->line_total;
+            }
+        }
+        $tax_rate = 10; // example 10%
+        $tax = round($subtotal * ($tax_rate/100), 2);
+        $shipping = 0.0;
+        $total = $subtotal + $tax + $shipping;
+
+        return view('customer.order_details', [
+            'order_no' => $orderNo,
+            'items' => $rows,
+            'subtotal' => $subtotal,
+            'tax_rate' => $tax_rate,
+            'tax' => $tax,
+            'shipping' => $shipping,
+            'total' => $total,
+        ]);
+    })->name('order.details');
+    Route::get('/checkout', function (Request $request) {
+        $cart = (array) $request->session()->get('cart', []);
+        $productIds = array_keys($cart);
+
+        $items = [];
+        $subtotal = 0.0;
+
+        if (!empty($productIds)) {
+            $products = \App\Product::whereIn('id', $productIds)
+                ->with(['variations'])
+                ->get();
+
+            foreach ($products as $product) {
+                $qty = (int) ($cart[(string)$product->id] ?? $cart[$product->id] ?? 0);
+                if ($qty < 1) { continue; }
+
+                $variation = null;
+                if ($product->relationLoaded('variations') && $product->variations->isNotEmpty()) {
+                    $variation = $product->variations
+                        ->sortBy(function($x){ return is_null($x->sell_price_inc_tax) ? INF : $x->sell_price_inc_tax; })
+                        ->first();
+                }
+
+                $unit_price = 0.0;
+                if ($variation) {
+                    $unit_price = (float) ($variation->sell_price_inc_tax ?? $variation->default_sell_price ?? 0);
+                }
+                $line_total = $unit_price * $qty;
+                $subtotal += $line_total;
+
+                $items[] = [
+                    'product_id' => $product->id,
+                    'name' => $product->name,
+                    'image_url' => $product->image_url ?? asset('img/default.png'),
+                    'sku' => $variation ? ($variation->sub_sku ?: '') : '',
+                    'unit_price' => $unit_price,
+                    'quantity' => $qty,
+                    'line_total' => $line_total,
+                ];
+            }
+        }
+
+        $tax = round($subtotal * 0.10, 2); // example 10% tax
+        $total = $subtotal + $tax;
+
+        return view('customer.checkout', [
+            'items' => $items,
+            'summary' => [
+                'subtotal' => $subtotal,
+                'tax_rate' => 10,
+                'tax' => $tax,
+                'shipping' => 0,
+                'total' => $total,
+            ],
+        ]);
+    })->name('checkout.show');
+
+    Route::post('/checkout/place', function (Request $request) {
+        // Normalize inputs before validation
+        if ($request->filled('card_number')) {
+            $request->merge([
+                'card_number' => preg_replace('/\D+/', '', $request->input('card_number')),
+            ]);
+        }
+        // Validate inputs
+        $currentYear = (int) date('Y');
+        $data = $request->validate([
+            'customer_name' => ['required','string','max:255'],
+            'mobile' => ['required','string','max:20', 'regex:/^\+?[0-9\s\-]{7,20}$/'],
+            'shipping_address' => ['required','string','max:1000'],
+            'billing_address' => ['required','string','max:1000'],
+            'payment_method' => ['required','in:cod,card,paypal'],
+            'order_notes' => ['nullable','string','max:2000'],
+            // Card-only fields
+            'card_name' => ['required_if:payment_method,card','nullable','string','max:255'],
+            'card_number' => ['required_if:payment_method,card','nullable','string','min:13','max:19','regex:/^[0-9]{13,19}$/'],
+            'card_exp_month' => ['required_if:payment_method,card','nullable','integer','between:1,12'],
+            'card_exp_year' => ['required_if:payment_method,card','nullable','integer','min:'.$currentYear,'max:'.($currentYear+15)],
+            'card_cvv' => ['required_if:payment_method,card','nullable','string','regex:/^[0-9]{3,4}$/'],
+        ]);
+
+        // Build items from current session cart
+        $cart = (array) $request->session()->get('cart', []);
+        if (empty($cart)) {
+            return redirect()->route('cart.show')->with('status', 'Cart is empty');
+        }
+
+        $products = \App\Product::whereIn('id', array_keys($cart))->with('variations')->get();
+        $items = [];
+        foreach ($products as $product) {
+            $qty = (int) ($cart[(string)$product->id] ?? $cart[$product->id] ?? 0);
+            if ($qty < 1) { continue; }
+            $variation = ($product->relationLoaded('variations') && $product->variations->isNotEmpty())
+                ? $product->variations->sortBy(function($x){ return is_null($x->sell_price_inc_tax) ? INF : $x->sell_price_inc_tax; })->first()
+                : null;
+            $unit_price = $variation ? (float) ($variation->sell_price_inc_tax ?? $variation->default_sell_price ?? 0) : 0.0;
+            $line_total = $unit_price * $qty;
+            $items[] = [
+                'product_id' => $product->id,
+                'product_name' => $product->name,
+                'sku' => $variation ? ($variation->sub_sku ?: '') : null,
+                'unit_price' => $unit_price,
+                'quantity' => $qty,
+                'line_total' => $line_total,
+            ];
+        }
+
+        if (empty($items)) {
+            return redirect()->route('cart.show')->with('status', 'Cart is empty');
+        }
+
+        // Generate order number and persist each line
+        $orderNo = 'OD'.date('YmdHis').rand(100,999);
+        $card_last4 = null;
+        if (($data['payment_method'] ?? null) === 'card' && !empty($data['card_number'])) {
+            $card_last4 = substr(preg_replace('/\D+/', '', $data['card_number']), -4) ?: null;
+        }
+
+        foreach ($items as $it) {
+            \App\OrderDetail::create([
+                'order_no' => $orderNo,
+                'product_id' => $it['product_id'],
+                'product_name' => $it['product_name'],
+                'sku' => $it['sku'],
+                'unit_price' => $it['unit_price'],
+                'quantity' => $it['quantity'],
+                'line_total' => $it['line_total'],
+                'payment_method' => $data['payment_method'] ?? null,
+                'customer_name' => $data['customer_name'] ?? null,
+                'notes' => trim(collect([
+                    'Mobile: ' . ($data['mobile'] ?? ''),
+                    'Shipping: ' . ($data['shipping_address'] ?? ''),
+                    'Billing: ' . ($data['billing_address'] ?? ''),
+                    (($data['payment_method'] ?? null) === 'card' && $card_last4) ? ('Card: **** **** **** ' . $card_last4) : null,
+                    ($data['order_notes'] ?? null) ? ('Notes: ' . $data['order_notes']) : null,
+                ])->filter()->implode(' | ')),
+            ]);
+        }
+
+        // Clear cart, remember last order and redirect to order details page
+        $request->session()->forget('cart');
+        $request->session()->put('last_order_no', $orderNo);
+        // Maintain a lightweight session list of "my orders" for the current browser session
+        $myOrders = (array) $request->session()->get('my_orders', []);
+        // Add newest first, keep unique and cap list size
+        array_unshift($myOrders, $orderNo);
+        $myOrders = array_values(array_unique($myOrders));
+        $myOrders = array_slice($myOrders, 0, 20);
+        $request->session()->put('my_orders', $myOrders);
+
+        return redirect()->route('order.details', ['order_no' => $orderNo]);
+    })->name('checkout.place');
+
+    // Public customer landing page
+    Route::get('/customer', function () {
+        return view('customer.customer');
+    })->name('customer.page');
+
+    // My Orders (session-based for public storefront)
+    Route::get('/my-orders', function (Request $request) {
+        $orderNos = (array) $request->session()->get('my_orders', []);
+        $orders = [];
+        foreach ($orderNos as $no) {
+            $rows = \App\OrderDetail::where('order_no', $no)->get();
+            if ($rows->isEmpty()) { continue; }
+            $subtotal = (float) $rows->sum('line_total');
+            $tax_rate = 10; // align with order details page example
+            $tax = round($subtotal * ($tax_rate/100), 2);
+            $shipping = 0.0;
+            $total = $subtotal + $tax + $shipping;
+            $orders[] = [
+                'order_no' => $no,
+                'items_count' => $rows->sum('quantity'),
+                'subtotal' => $subtotal,
+                'tax_rate' => $tax_rate,
+                'tax' => $tax,
+                'shipping' => $shipping,
+                'total' => $total,
+                'payment_method' => optional($rows->first())?->payment_method,
+                'customer_name' => optional($rows->first())?->customer_name,
+            ];
+        }
+        return view('customer.my_orders', [ 'orders' => $orders ]);
+    })->name('orders.index');
+
     Auth::routes();
+
+    // Customer authentication (separate guard)
+    Route::get('/customer/login', [\App\Http\Controllers\CustomerAuthController::class, 'showLoginForm'])->name('customer.login.show');
+    Route::post('/customer/login', [\App\Http\Controllers\CustomerAuthController::class, 'login'])->name('customer.login');
+    Route::post('/customer/logout', [\App\Http\Controllers\CustomerAuthController::class, 'logout'])->name('customer.logout');
 
     Route::get('/business/register', [BusinessController::class, 'getRegister'])->name('business.getRegister');
     Route::post('/business/register', [BusinessController::class, 'postRegister'])->name('business.postRegister');
@@ -96,6 +472,13 @@ Route::middleware(['setData'])->group(function () {
         ->name('invoice_payment');
     Route::post('/confirm-payment/{id}', [SellPosController::class, 'confirmPayment'])
         ->name('confirm_payment');
+});
+
+// Customer protected routes
+Route::middleware(['setData', 'auth:customer'])->group(function () {
+    Route::get('/customer/home', function () {
+        return view('customer.home');
+    })->name('customer.home');
 });
 
 //Routes for authenticated users only

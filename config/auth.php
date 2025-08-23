@@ -48,7 +48,7 @@ return [
         
         'customer' => [
             'driver' => 'session',
-            'provider' => 'contacts',
+            'provider' => 'customer_logins',
         ],
     ],
 
@@ -78,6 +78,11 @@ return [
         'contacts' => [
             'driver' => 'eloquent',
             'model' => App\Contact::class,
+        ],
+
+        'customer_logins' => [
+            'driver' => 'eloquent',
+            'model' => App\CustomerLogin::class,
         ],
 
         // 'users' => [
@@ -112,6 +117,12 @@ return [
         'contacts' => [
             'provider' => 'contacts',
             'table' => 'password_resets_contacts',
+            'expire' => 60,
+        ],
+
+        'customer_logins' => [
+            'provider' => 'customer_logins',
+            'table' => 'password_resets_customers',
             'expire' => 60,
         ],
     ],

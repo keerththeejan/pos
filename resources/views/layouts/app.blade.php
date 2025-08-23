@@ -39,15 +39,20 @@
 </head>
 <body
     class="tw-font-sans tw-antialiased tw-text-gray-900 tw-bg-gray-100 @if ($pos_layout) hold-transition lockscreen @else hold-transition skin-@if (!empty(session('business.theme_color'))){{ session('business.theme_color') }}@else{{ 'blue-light' }} @endif sidebar-mini @endif" >
-    <div class="tw-flex thetop">
+    <div class="tw-flex tw-h-screen tw-overflow-hidden thetop">
         <script type="text/javascript">
             if (localStorage.getItem("upos_sidebar_collapse") == 'true') {
                 var body = document.getElementsByTagName("body")[0];
                 body.className += " sidebar-collapse";
             }
         </script>
-        @if (!$pos_layout && $request->segment(1) != 'customer-display')
-            @include('layouts.partials.sidebar')
+        @if (!$pos_layout && $request->segment(1) != 'customer-display' && !in_array($request->segment(1), ['customer','cart']))
+            @php $authUser = auth()->user(); @endphp
+            @if( ($authUser && $authUser->user_type == 'user_customer') || Auth::guard('customer')->check())
+                @include('layouts.partials.customer_sidebar_fixed')
+            @else
+                @include('layouts.partials.sidebar')
+            @endif
         @endif
 
         @if (in_array($_SERVER['REMOTE_ADDR'], $whitelist))
