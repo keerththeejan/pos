@@ -3,294 +3,658 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Checkout</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <title>Checkout - Complete Your Purchase</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        :root {
-            --primary-color: #4a6cf7;
-            --secondary-color: #6f42c1;
-            --light-gray: #f8f9fa;
-            --border-color: #dee2e6;
-            --text-dark: #212529;
-            --text-muted: #6c757d;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-        body { background-color: #f9fafb; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: var(--text-dark); }
-        .page-title { font-weight: 700; margin: 1rem 0 1.25rem; }
-        .card-clean { background: #fff; border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); }
-        .card-clean .card-header { background: var(--light-gray); border-bottom: 1px solid var(--border-color); font-weight: 600; }
-        .btn-primary { background-color: var(--primary-color); border-color: var(--primary-color); }
-        .btn-primary:hover { background-color: #3a5ad9; border-color: #3a5ad9; }
-        .btn-outline-secondary:hover { background-color: #eef2ff; }
-        .summary-title { font-weight: 700; }
-        .summary-item { display:flex; justify-content: space-between; margin-bottom: .5rem; }
-        .summary-divider { border-top: 1px solid var(--border-color); margin: .75rem 0; }
-        .summary-total { display:flex; justify-content: space-between; font-weight: 700; font-size: 1.05rem; }
-        .lock-icon { margin-right: .5rem; }
-        .order-items img { width: 48px; height: 48px; object-fit: cover; border: 1px solid var(--border-color); border-radius: 6px; }
-        .coupon .form-control { border-right: 0; }
-        .coupon .btn { border-left: 0; }
+        
+        body {
+            background-color: #f8f9fa;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        
+        header {
+            grid-column: 1 / -1;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .logo {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #4a6cf7;
+            margin-bottom: 10px;
+        }
+        
+        h1 {
+            font-size: 2rem;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        h2 {
+            font-size: 1.5rem;
+            color: #4a6cf7;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #eaeaea;
+        }
+        
+        .section {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            margin-bottom: 25px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #444;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+        
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #4a6cf7;
+            box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.1);
+        }
+        
+        .payment-options {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .payment-option {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .payment-option:hover, .payment-option.active {
+            border-color: #4a6cf7;
+            background: #f8faff;
+        }
+        
+        .payment-option i {
+            margin-right: 10px;
+            color: #4a6cf7;
+            font-size: 20px;
+        }
+        
+        .payment-details {
+            display: none;
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+        
+        .payment-option.active .payment-details {
+            display: block;
+        }
+        
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        
+        .btn-primary {
+            background: #4a6cf7;
+            color: white;
+            margin-bottom: 15px;
+        }
+        
+        .btn-primary:hover {
+            background: #3a5bd9;
+        }
+        
+        .btn-secondary {
+            background: transparent;
+            color: #4a6cf7;
+            border: 1px solid #4a6cf7;
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(74, 108, 247, 0.1);
+        }
+        
+        .order-summary {
+            background: linear-gradient(135deg, #4a6cf7, #2f54eb);
+            color: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .order-summary h2 {
+            color: white;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 15px 0;
+        }
+        
+        .total {
+            font-size: 1.5rem;
+            font-weight: bold;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            padding-top: 15px;
+            margin-top: 15px;
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 15px;
+        }
+        
+        .form-row .form-group {
+            flex: 1;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            
+            .form-row {
+                flex-direction: column;
+                gap: 0;
+            }
+        }
+        
+        .error {
+            color: red;
+            font-size: 14px;
+            margin-top: 5px;
+            display: none;
+        }
+        
+        input:invalid, select:invalid {
+            border-color: red;
+        }
     </style>
 </head>
 <body>
-<div class="container py-4">
-    <h1 class="page-title">Checkout</h1>
-    <div class="row g-3">
-        <div class="col-lg-8">
-            <div class="card card-clean mb-3">
-                <div class="card-header">Shipping & Billing Information</div>
-                <div class="card-body">
-                    <form id="checkout-form" method="POST" action="{{ route('checkout.place') }}">
-                        @csrf
-                        <div class="row g-3 align-items-center mb-2">
-                            <div class="col-12 col-md-6">
-                                <label class="form-label">Full Name<span class="text-danger"> *</span></label>
-                                <input type="text" class="form-control @error('customer_name') is-invalid @enderror" name="customer_name" placeholder="Enter your full name" value="{{ old('customer_name') }}" required>
-                                @error('customer_name')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-                            <div class="col-12 col-md-6">
-                                <label class="form-label">Mobile Number<span class="text-danger"> *</span></label>
-                                <input type="tel" class="form-control @error('mobile') is-invalid @enderror" name="mobile" placeholder="e.g. +41 79 123 45 67" value="{{ old('mobile') }}" required pattern="^[0-9+\-\s]{7,20}$" maxlength="20" title="Enter a valid phone number (digits, +, -, spaces).">
-                                @error('mobile')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-                        </div>
-                        <div class="row g-3 align-items-center mb-2">
-                            <div class="col-12 col-md-8">
-                                <label class="form-label">Shipping Address</label>
-                                <textarea class="form-control @error('shipping_address') is-invalid @enderror" name="shipping_address" rows="3" placeholder="Street, City, Postal Code, Country" required>{{ old('shipping_address') }}</textarea>
-                                @error('shipping_address')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-                            <div class="col-12 col-md-4 d-flex align-items-end">
-                                <button type="button" class="btn btn-outline-secondary w-100"><i class="bi bi-geo-alt me-1"></i>Manage</button>
-                            </div>
-                        </div>
-                        <div class="row g-3 align-items-center mb-2">
-                            <div class="col-12 col-md-8">
-                                <label class="form-label">Billing Address</label>
-                                <textarea class="form-control @error('billing_address') is-invalid @enderror" name="billing_address" rows="3" placeholder="Street, City, Postal Code, Country" required>{{ old('billing_address') }}</textarea>
-                                @error('billing_address')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-                            <div class="col-12 col-md-4 d-flex align-items-end">
-                                <button type="button" class="btn btn-outline-secondary w-100"><i class="bi bi-geo-alt me-1"></i>Manage</button>
-                            </div>
-                        </div>
-                        <div class="form-check mb-3">
-                            <input class="form-check-input" type="checkbox" value="1" id="sameAs" checked>
-                            <label class="form-check-label" for="sameAs">Shipping address same as billing address</label>
-                        </div>
-
-                        <div class="mb-3">
-                            <div class="fw-semibold mb-1">Payment Method</div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="payment_method" id="pm_cod" value="cod" checked>
-                                <label class="form-check-label" for="pm_cod">Cash on Delivery</label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="payment_method" id="pm_card" value="card">
-                                <label class="form-check-label" for="pm_card">Credit/Debit Card</label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="payment_method" id="pm_paypal" value="paypal">
-                                <label class="form-check-label" for="pm_paypal">PayPal</label>
-                            </div>
-
-                            <div id="card-fields" class="mt-3" style="display:none;">
-                                <div class="row g-3">
-                                    <div class="col-12 col-md-6">
-                                        <label class="form-label">Name on Card<span class="text-danger"> *</span></label>
-                                        <input type="text" class="form-control @error('card_name') is-invalid @enderror" name="card_name" value="{{ old('card_name') }}" placeholder="As printed on card">
-                                        @error('card_name')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-                                    <div class="col-12 col-md-6">
-                                        <label class="form-label">Card Number<span class="text-danger"> *</span></label>
-                                        <input type="text" inputmode="numeric" autocomplete="cc-number" class="form-control @error('card_number') is-invalid @enderror" name="card_number" value="{{ old('card_number') }}" placeholder="1234 5678 9012 3456" maxlength="19">
-                                        @error('card_number')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-                                    <div class="col-6 col-md-3">
-                                        <label class="form-label">Exp. Month<span class="text-danger"> *</span></label>
-                                        <input type="number" min="1" max="12" class="form-control @error('card_exp_month') is-invalid @enderror" name="card_exp_month" value="{{ old('card_exp_month') }}" placeholder="MM">
-                                        @error('card_exp_month')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-                                    <div class="col-6 col-md-3">
-                                        <label class="form-label">Exp. Year<span class="text-danger"> *</span></label>
-                                        <input type="number" min="{{ date('Y') }}" max="{{ date('Y') + 15 }}" class="form-control @error('card_exp_year') is-invalid @enderror" name="card_exp_year" value="{{ old('card_exp_year') }}" placeholder="YYYY">
-                                        @error('card_exp_year')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-                                    <div class="col-12 col-md-3">
-                                        <label class="form-label">CVV<span class="text-danger"> *</span></label>
-                                        <input type="password" inputmode="numeric" class="form-control @error('card_cvv') is-invalid @enderror" name="card_cvv" value="" placeholder="3-4 digits" maxlength="4">
-                                        @error('card_cvv')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-                                </div>
-                                <div class="text-muted small mt-2">We never store full card numbers. Payments are processed securely.</div>
-                            </div>
-                        </div>
-
-                        <div class="mb-2">
-                            <label class="form-label">Order Notes (Optional)</label>
-                            <textarea class="form-control" name="order_notes" rows="3" placeholder="Special instructions for delivery or order"></textarea>
-                        </div>
-
-                        <div class="card card-clean mt-4">
-                            <div class="card-header">Order Items</div>
-                            <div class="card-body p-0">
-                                <div class="table-responsive order-items">
-                                    <table class="table mb-0 align-middle">
-                                        <thead class="table-light">
-                                        <tr>
-                                            <th>Product</th>
-                                            <th>Price</th>
-                                            <th>Quantity</th>
-                                            <th>Total</th>
-                                        </tr>
-                                        </thead>
-                                        <tbody>
-                                        @forelse(($items ?? []) as $it)
-                                            <tr>
-                                                <td>
-                                                    <div class="d-flex align-items-center gap-2">
-                                                        <img src="{{ $it['image_url'] ?? asset('img/default.png') }}" alt="{{ $it['name'] }}">
-                                                        <div>
-                                                            <div class="fw-semibold">{{ $it['name'] }}</div>
-                                                            <div class="text-muted small">{{ $it['sku'] }}</div>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td>CHF {{ number_format((float)($it['unit_price'] ?? 0), 2) }}</td>
-                                                <td>{{ (int)($it['quantity'] ?? 1) }}</td>
-                                                <td>CHF {{ number_format((float)($it['line_total'] ?? 0), 2) }}</td>
-                                            </tr>
-                                        @empty
-                                            <tr>
-                                                <td colspan="4" class="text-center text-muted">No items in cart</td>
-                                            </tr>
-                                        @endforelse
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="d-lg-none my-3">
-                            <button type="submit" class="btn btn-primary w-100 py-2"><i class="bi bi-lock-fill lock-icon"></i>Place Order</button>
-                            <div class="text-center mt-2"><a href="{{ route('cart.show') }}" class="text-decoration-none">← Return to Cart</a></div>
-                        </div>
-                    </form>
+    <div class="container">
+        <header>
+            <div class="logo">SHOPPING</div>
+            <h1>Complete Your Checkout</h1>
+        </header>
+        
+        <main>
+            <div class="section">
+                <h2>Contact Information</h2>
+                <div class="form-group">
+                    <label for="email">Email Address *</label>
+                    <input type="email" id="email" name="email" required>
+                    <div class="error" id="email-error">Please enter a valid email address</div>
+                </div>
+                <div class="form-group">
+                    <label for="phone">Phone Number *</label>
+                    <input type="tel" id="phone" name="phone" required>
+                    <div class="error" id="phone-error">Please enter a valid phone number</div>
                 </div>
             </div>
-        </div>
-
-        <div class="col-lg-4">
-            <div class="card card-clean mb-3">
-                <div class="card-body">
-                    <div class="summary-title mb-2">Order Summary</div>
-                    <div class="summary-item"><span class="text-muted">Subtotal:</span><span>CHF {{ number_format((float)($summary['subtotal'] ?? 0), 2) }}</span></div>
-                    <div class="summary-item"><span class="text-muted">Shipping:</span><span>Free</span></div>
-                    <div class="summary-item"><span class="text-muted">Tax ({{ (int)($summary['tax_rate'] ?? 0) }}%):</span><span>CHF {{ number_format((float)($summary['tax'] ?? 0), 2) }}</span></div>
-                    <div class="summary-divider"></div>
-                    <div class="summary-total"><span>Total:</span><span>CHF {{ number_format((float)($summary['total'] ?? 0), 2) }}</span></div>
-                    <button form="checkout-form" type="submit" class="btn btn-primary w-100 py-2 mt-2"><i class="bi bi-lock-fill lock-icon"></i>Place Order</button>
-                    <div class="text-center mt-2"><a href="{{ route('cart.show') }}" class="text-decoration-none">← Return to Cart</a></div>
-                </div>
-            </div>
-
-            <div class="card card-clean coupon">
-                <div class="card-body">
-                    <div class="summary-title mb-2">Have a coupon?</div>
-                    <div class="input-group">
-                        <input type="text" class="form-control" placeholder="Coupon code" aria-label="Coupon code">
-                        <button class="btn btn-outline-secondary" type="button">Apply</button>
+            
+            <div class="section">
+                <h2>Shipping Information</h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="first-name">First Name *</label>
+                        <input type="text" id="first-name" name="first_name" required>
+                        <div class="error" id="first-name-error">Please enter your first name</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="last-name">Last Name *</label>
+                        <input type="text" id="last-name" name="last_name" required>
+                        <div class="error" id="last-name-error">Please enter your last name</div>
                     </div>
                 </div>
+                <div class="form-group">
+                    <label for="address">Address *</label>
+                    <input type="text" id="address" name="address" required>
+                    <div class="error" id="address-error">Please enter your address</div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="city">City *</label>
+                        <input type="text" id="city" name="city" required>
+                        <div class="error" id="city-error">Please enter your city</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="postal-code">Postal Code *</label>
+                        <input type="text" id="postal-code" name="postal_code" required>
+                        <div class="error" id="postal-code-error">Please enter your postal code</div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="country">Country/Region *</label>
+                    <select id="country" name="country" required>
+                        <option value="">Select a country</option>
+                        <option value="switzerland">Switzerland</option>
+                        <option value="germany">Germany</option>
+                        <option value="france">France</option>
+                        <option value="italy">Italy</option>
+                        <option value="austria">Austria</option>
+                    </select>
+                    <div class="error" id="country-error">Please select your country</div>
+                </div>
             </div>
-        </div>
+            
+            <div class="section">
+                <h2>Payment Method</h2>
+                <div class="payment-options">
+                    <div class="payment-option" data-method="card">
+                        <p><i class="far fa-credit-card"></i> Credit Card</p>
+                        
+                        <div class="payment-details" id="credit-card-details">
+                            <div class="form-group">
+                                <label for="card-number">Card Number *</label>
+                                <input type="text" id="card-number" name="card_number" placeholder="1234 5678 9012 3456" required>
+                                <div class="error" id="card-number-error">Please enter a valid card number</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="card-name">Name on Card *</label>
+                                <input type="text" id="card-name" name="card_name" required>
+                                <div class="error" id="card-name-error">Please enter the name on your card</div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="expiry">Expiry Date *</label>
+                                    <input type="text" id="expiry" name="expiry" placeholder="MM/YY" required>
+                                    <div class="error" id="expiry-error">Please enter a valid expiry date</div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="cvv">CVV *</label>
+                                    <input type="text" id="cvv" name="cvv" placeholder="123" required>
+                                    <div class="error" id="cvv-error">Please enter a valid CVV</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="payment-option" data-method="paypal">
+                        <p><i class="fab fa-paypal"></i> PayPal</p>
+                        <div class="payment-details" id="paypal-details">
+                            <p>You will be redirected to PayPal to complete your payment securely.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="payment-option" data-method="cod">
+                        <p><i class="fas fa-money-bill-wave"></i> Cash on Delivery</p>
+                        <div class="payment-details" id="cod-details">
+                            <p>Please have the exact amount ready for our delivery personnel.</p>
+                            <p>An additional CHF 2.00 processing fee applies to cash payments.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="error" id="payment-method-error">Please select a payment method</div>
+            </div>
+            
+            <div class="section">
+                <h2>Order Notes (Optional)</h2>
+                <textarea name="order_notes" rows="4" placeholder="Special instructions for delivery or order"></textarea>
+            </div>
+        </main>
+        
+        <aside>
+            <div class="order-summary">
+                <h2>Order Summary</h2>
+                
+                <div class="summary-item">
+                    <span>Subtotal:</span>
+                    <span id="subtotal">CHF {{ number_format($summary['subtotal'] ?? 0, 2) }}</span>
+                </div>
+                
+                <div class="summary-item">
+                    <span>Shipping:</span>
+                    <span id="shipping-cost">CHF {{ number_format($summary['shipping'] ?? 0, 2) }}</span>
+                </div>
+                
+                <div class="summary-item">
+                    <span>Tax:</span>
+                    <span id="tax-amount">CHF {{ number_format($summary['tax'] ?? 0, 2) }}</span>
+                </div>
+                
+                <div class="summary-item total">
+                    <span>Total:</span>
+                    <span id="total-amount">CHF {{ number_format($summary['total'] ?? 0, 2) }}</span>
+                </div>
+                
+                <form id="checkout-form" action="{{ route('checkout.place') }}" method="POST">
+                    @csrf
+                    <input type="hidden" name="payment_method" id="payment-method">
+                    <button type="submit" class="btn btn-primary" id="place-order-btn">Place Order</button>
+                </form>
+                <button class="btn btn-secondary" id="return-to-cart">Return to Cart</button>
+            </div>
+            
+            <div class="section">
+                <h3>Order Items</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Price</th>
+                            <th>Quantity</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="order-items">
+                        @forelse(($items ?? []) as $item)
+                            <tr>
+                                <td>{{ $item['name'] }}</td>
+                                <td>CHF {{ number_format($item['unit_price'], 2) }}</td>
+                                <td>{{ $item['quantity'] }}</td>
+                                <td>CHF {{ number_format($item['line_total'], 2) }}</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="4" class="text-center">No items in cart</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </aside>
     </div>
-</div>
 
-<script>
-    // Copy shipping to billing when "same as" is checked
-    const sameAs = document.getElementById('sameAs');
-    if (sameAs) {
-        const ship = document.querySelector('textarea[name="shipping_address"]');
-        const bill = document.querySelector('textarea[name="billing_address"]');
-        const sync = () => { if (sameAs.checked) bill.value = ship.value; };
-        ship?.addEventListener('input', sync);
-        sameAs.addEventListener('change', sync);
-        sync();
-    }
+    <script>
+        // Sample cart data (replace with your actual cart data)
+        const cartItems = [
+            { id: 1, name: "Sample Product 1", price: 29.99, quantity: 2 },
+            { id: 2, name: "Sample Product 2", price: 49.99, quantity: 1 }
+        ];
 
-    const checkoutForm = document.getElementById('checkout-form');
-    checkoutForm?.addEventListener('submit', function (e) {
-        const ok = window.confirm('Order confirm?');
-        if (!ok) {
-            e.preventDefault();
-            e.stopPropagation();
-            return; // stay on checkout
-        }
-        // Allow normal form submission; backend will save and redirect to /order-details?order_no=...
-    });
+        // Initialize the checkout page
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set up payment method selection
+            setupPaymentMethods();
+            
+            // Set up form validation
+            setupFormValidation();
+            
+            // Set up return to cart button
+            document.getElementById('return-to-cart').addEventListener('click', function() {
+                window.history.back();
+            });
+        });
 
-
-    // Payment method toggle: show/hide card fields and toggle required attributes
-    (function(){
-        const pmRadios = document.querySelectorAll('input[name="payment_method"]');
-        const cardBox = document.getElementById('card-fields');
-        const cardName = document.querySelector('input[name="card_name"]');
-        const cardNumber = document.querySelector('input[name="card_number"]');
-        const cardExpMonth = document.querySelector('input[name="card_exp_month"]');
-        const cardExpYear = document.querySelector('input[name="card_exp_year"]');
-        const cardCvv = document.querySelector('input[name="card_cvv"]');
-
-        function setCardRequired(on){
-            [cardName, cardNumber, cardExpMonth, cardExpYear, cardCvv].forEach(el => { if (el) el.required = !!on; });
-        }
-
-        function onPMChange(){
-            const val = document.querySelector('input[name="payment_method"]:checked')?.value;
-            const show = (val === 'card');
-            if (cardBox) cardBox.style.display = show ? '' : 'none';
-            setCardRequired(show);
+        // Populate order items in the table
+        function populateOrderItems() {
+            const orderItemsContainer = document.getElementById('order-items');
+            orderItemsContainer.innerHTML = '';
+            
+            if (cartItems.length === 0) {
+                orderItemsContainer.innerHTML = '<tr><td colspan="4" class="text-center">No items in cart</td></tr>';
+                return;
+            }
+            
+            cartItems.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${item.name}</td>
+                    <td>CHF ${item.price.toFixed(2)}</td>
+                    <td>${item.quantity}</td>
+                    <td>CHF ${(item.price * item.quantity).toFixed(2)}</td>
+                `;
+                orderItemsContainer.appendChild(row);
+            });
         }
 
-        pmRadios.forEach(r => r.addEventListener('change', onPMChange));
-        onPMChange(); // init on load
+        // Server renders summary values; no JS summary calculation needed here
 
-        // Light formatting: keep digits only, space every 4 for display
-        cardNumber?.addEventListener('input', function(){
-            const digits = this.value.replace(/\D+/g,'').slice(0,19);
-            this.value = digits.replace(/(.{4})/g,'$1 ').trim();
-        });
-        cardCvv?.addEventListener('input', function(){
-            this.value = this.value.replace(/\D+/g,'').slice(0,4);
-        });
-        cardExpMonth?.addEventListener('input', function(){
-            let v = parseInt(this.value||'');
-            if (isNaN(v)) return; if (v<1) v=1; if (v>12) v=12; this.value = String(v);
-        });
-    })();
-</script>
+        // Set up payment method selection
+        function setupPaymentMethods() {
+            const paymentOptions = document.querySelectorAll('.payment-option');
+            
+            paymentOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    // Remove active class from all options
+                    paymentOptions.forEach(opt => {
+                        opt.classList.remove('active');
+                        const details = opt.querySelector('.payment-details');
+                        if (details) details.style.display = 'none';
+                    });
+                    
+                    // Add active class to clicked option
+                    this.classList.add('active');
+                    const details = this.querySelector('.payment-details');
+                    if (details) details.style.display = 'block';
+                    
+                    // Update hidden payment method input
+                    document.getElementById('payment-method').value = this.dataset.method;
+                    
+                    // Clear payment method error
+                    document.getElementById('payment-method-error').style.display = 'none';
+                });
+            });
+        }
 
+        // Set up form validation
+        function setupFormValidation() {
+            const form = document.getElementById('checkout-form');
+            
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                // Validate all required fields
+                const isValid = validateForm();
+                
+                if (isValid) {
+                    // Show loading state and submit form to server
+                    const submitBtn = document.getElementById('place-order-btn');
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = 'Processing...';
 
+                    // Collect fields and append as hidden inputs
+                    const makeHidden = (name, value) => {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = name;
+                        input.value = value ?? '';
+                        return input;
+                    };
 
+                    // Build shipping/billing summary strings
+                    const email = (document.getElementById('email')?.value || '').trim();
+                    const phone = (document.getElementById('phone')?.value || '').trim();
+                    const first = (document.getElementById('first-name')?.value || '').trim();
+                    const last = (document.getElementById('last-name')?.value || '').trim();
+                    const address = (document.getElementById('address')?.value || '').trim();
+                    const city = (document.getElementById('city')?.value || '').trim();
+                    const postal = (document.getElementById('postal-code')?.value || '').trim();
+                    const country = (document.getElementById('country')?.value || '').trim();
+                    const notes = (document.querySelector('textarea[name="order_notes"]')?.value || '').trim();
 
+                    const shippingAddress = `${first} ${last}\n${address}\n${city} ${postal}\n${country}\nEmail: ${email}\nPhone: ${phone}`.trim();
+
+                    form.appendChild(makeHidden('first_name', first));
+                    form.appendChild(makeHidden('last_name', last));
+                    form.appendChild(makeHidden('shipping_address', shippingAddress));
+                    form.appendChild(makeHidden('billing_address', shippingAddress));
+                    form.appendChild(makeHidden('order_notes', notes));
+
+                    form.submit();
+                }
+            });
+            
+            // Add input event listeners to clear errors when user starts typing
+            const inputs = document.querySelectorAll('input, select');
+            inputs.forEach(input => {
+                input.addEventListener('input', function() {
+                    const errorId = this.id + '-error';
+                    const errorElement = document.getElementById(errorId);
+                    if (errorElement) {
+                        errorElement.style.display = 'none';
+                        this.style.borderColor = '#ddd';
+                    }
+                });
+            });
+        }
+
+        // Validate the entire form
+        function validateForm() {
+            let isValid = true;
+            
+            // Validate contact information
+            if (!validateField('email', value => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))) {
+                isValid = false;
+            }
+            
+            if (!validateField('phone', value => value.length >= 10)) {
+                isValid = false;
+            }
+            
+            // Validate shipping information
+            if (!validateField('first-name', value => value.trim().length > 0)) {
+                isValid = false;
+            }
+            
+            if (!validateField('last-name', value => value.trim().length > 0)) {
+                isValid = false;
+            }
+            
+            if (!validateField('address', value => value.trim().length > 0)) {
+                isValid = false;
+            }
+            
+            if (!validateField('city', value => value.trim().length > 0)) {
+                isValid = false;
+            }
+            
+            if (!validateField('postal-code', value => value.trim().length > 0)) {
+                isValid = false;
+            }
+            
+            if (!validateField('country', value => value !== '')) {
+                isValid = false;
+            }
+            
+            // Validate payment method
+            const paymentMethod = document.getElementById('payment-method').value;
+            if (!paymentMethod) {
+                document.getElementById('payment-method-error').style.display = 'block';
+                isValid = false;
+            }
+            
+            // Validate credit card details if credit card is selected
+            if (paymentMethod === 'credit-card') {
+                if (!validateField('card-number', value => value.replace(/\s/g, '').length === 16)) {
+                    isValid = false;
+                }
+                
+                if (!validateField('card-name', value => value.trim().length > 0)) {
+                    isValid = false;
+                }
+                
+                if (!validateField('expiry', value => /^\d{2}\/\d{2}$/.test(value))) {
+                    isValid = false;
+                }
+                
+                if (!validateField('cvv', value => value.length >= 3 && value.length <= 4)) {
+                    isValid = false;
+                }
+            }
+            
+            return isValid;
+        }
+
+        // Validate a specific field
+        function validateField(fieldId, validationFn) {
+            const field = document.getElementById(fieldId);
+            const errorElement = document.getElementById(fieldId + '-error');
+            
+            if (!field || !validationFn(field.value)) {
+                if (errorElement) {
+                    errorElement.style.display = 'block';
+                }
+                field.style.borderColor = 'red';
+                return false;
+            }
+            
+            if (errorElement) {
+                errorElement.style.display = 'none';
+            }
+            field.style.borderColor = '#ddd';
+            return true;
+        }
+
+        // Auto-format credit card number
+        const cardNumber = document.getElementById('card-number');
+        if (cardNumber) {
+            cardNumber.addEventListener('input', function(e) {
+                let value = e.target.value.replace(/\s+/g, '');
+                if (value.length > 0) {
+                    value = value.match(new RegExp('.{1,4}', 'g')).join(' ');
+                }
+                e.target.value = value;
+            });
+        }
+        
+        // Auto-format expiry date
+        const expiry = document.getElementById('expiry');
+        if (expiry) {
+            expiry.addEventListener('input', function(e) {
+                let value = e.target.value.replace(/\D/g, '');
+                if (value.length > 2) {
+                    value = value.substring(0, 2) + '/' + value.substring(2, 4);
+                }
+                e.target.value = value;
+            });
+        }
+        
+        // Auto-format CVV
+        const cvv = document.getElementById('cvv');
+        if (cvv) {
+            cvv.addEventListener('input', function(e) {
+                this.value = this.value.replace(/\D/g, '').substring(0, 4);
+            });
+        }
+    </script>
 </body>
 </html>

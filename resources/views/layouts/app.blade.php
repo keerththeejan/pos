@@ -46,9 +46,15 @@
                 body.className += " sidebar-collapse";
             }
         </script>
-        @if (!$pos_layout && $request->segment(1) != 'customer-display' && !in_array($request->segment(1), ['customer','cart']))
-            @php $authUser = auth()->user(); @endphp
-            @if( ($authUser && $authUser->user_type == 'user_customer') || Auth::guard('customer')->check())
+        @if (!$pos_layout && $request->segment(1) != 'customer-display')
+            @php 
+                $authUser = auth()->user();
+                $isCustomerGuard = auth('customer')->check();
+            @endphp
+            @if($isCustomerGuard)
+                @include('layouts.partials.customer_sidebar_fixed')
+            @elseif($authUser && $authUser->user_type == 'user_customer')
+                {{-- Backward compatibility if an admin-guard user carries user_type "user_customer" --}}
                 @include('layouts.partials.customer_sidebar_fixed')
             @else
                 @include('layouts.partials.sidebar')

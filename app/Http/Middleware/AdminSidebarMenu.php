@@ -814,28 +814,30 @@ class AdminSidebarMenu
                   </svg>', 'active' => request()->segment(1) == 'notification-templates'])->order(80);
             }
 
-            //Banners dropdown (above Settings)
-            $menu->dropdown(
-                __('Banners'),
-                function ($sub) {
-                    // Add Banner
-                    $sub->url(
-                        action([\App\Http\Controllers\BannersController::class, 'create']),
-                        __('Add Banner'),
-                        ['icon' => '', 'active' => request()->segment(1) == 'banners' && request()->segment(2) == 'create']
-                    );
-                    // Update Banner → go to index list (no DB call here)
-                    $sub->url(
-                        action([\App\Http\Controllers\BannersController::class, 'index']),
-                        __('Update Banner'),
-                        ['icon' => '', 'active' => request()->segment(1) == 'banners' && !request()->segment(2)]
-                    );
-                },
-                [
-                    'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="tw-size-5 tw-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H4z"/><path d="M4 16l4-4 3 3 5-5 4 4"/></svg>',
-                    'active' => request()->segment(1) == 'banners'
-                ]
-            )->order(83);
+            //Banners dropdown (above Settings) — show only to Admins
+            if ($is_admin) {
+                $menu->dropdown(
+                    __('Banners'),
+                    function ($sub) {
+                        // Add Banner
+                        $sub->url(
+                            action([\App\Http\Controllers\BannersController::class, 'create']),
+                            __('Add Banner'),
+                            ['icon' => '', 'active' => request()->segment(1) == 'banners' && request()->segment(2) == 'create']
+                        );
+                        // Update Banner → go to index list (no DB call here)
+                        $sub->url(
+                            action([\App\Http\Controllers\BannersController::class, 'index']),
+                            __('Update Banner'),
+                            ['icon' => '', 'active' => request()->segment(1) == 'banners' && !request()->segment(2)]
+                        );
+                    },
+                    [
+                        'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="tw-size-5 tw-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H4z"/><path d="M4 16l4-4 3 3 5-5 4 4"/></svg>',
+                        'active' => request()->segment(1) == 'banners'
+                    ]
+                )->order(83);
+            }
 
             //Settings Dropdown
             if (auth()->user()->can('business_settings.access') ||

@@ -10,7 +10,7 @@
                 </a>
             </li>
             <li>
-                <a href="{{ url('/') }}" class="tw-flex tw-items-center tw-gap-2 tw-px-4 tw-py-2.5 hover:tw-bg-gray-100 tw-text-gray-700">
+                <a href="{{ route('customer.home') }}" class="tw-flex tw-items-center tw-gap-2 tw-px-4 tw-py-2.5 hover:tw-bg-gray-100 tw-text-gray-700">
                     <span>Dashboard</span>
                 </a>
             </li>

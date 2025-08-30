@@ -66,6 +66,92 @@
         <hr>
 
         <div class="row check_group">
+          <div class="col-md-1">
+            <h4>Customer Menu</h4>
+          </div>
+          <div class="col-md-2">
+            <div class="checkbox">
+                <label>
+                  <input type="checkbox" class="check_all input-icheck"> {{ __( 'role.select_all' ) }}
+                </label>
+              </div>
+          </div>
+          <div class="col-md-9">
+            <div class="col-md-12">
+              <div class="checkbox">
+                <label>
+                  {!! Form::checkbox('permissions[]', 'customer.menu.invoices', in_array('customer.menu.invoices', $role_permissions), ['class' => 'input-icheck']) !!} Invoices
+                </label>
+              </div>
+            </div>
+            <div class="col-md-12">
+              <div class="checkbox">
+                <label>
+                  {!! Form::checkbox('permissions[]', 'customer.menu.order_templates', in_array('customer.menu.order_templates', $role_permissions), ['class' => 'input-icheck']) !!} Order Templates
+                </label>
+              </div>
+            </div>
+            <div class="col-md-12">
+              <div class="checkbox">
+                <label>
+                  {!! Form::checkbox('permissions[]', 'customer.menu.speed_order', in_array('customer.menu.speed_order', $role_permissions), ['class' => 'input-icheck']) !!} Speed Order
+                </label>
+              </div>
+            </div>
+            <div class="col-md-12">
+              <div class="checkbox">
+                <label>
+                  {!! Form::checkbox('permissions[]', 'customer.menu.dashboard', in_array('customer.menu.dashboard', $role_permissions), ['class' => 'input-icheck']) !!} Dashboard
+                </label>
+              </div>
+            </div>
+            <div class="col-md-12">
+              <div class="checkbox">
+                <label>
+                  {!! Form::checkbox('permissions[]', 'customer.menu.orders', in_array('customer.menu.orders', $role_permissions), ['class' => 'input-icheck']) !!} My Orders
+                </label>
+              </div>
+            </div>
+            <div class="col-md-12">
+              <div class="checkbox">
+                <label>
+                  {!! Form::checkbox('permissions[]', 'customer.menu.addresses', in_array('customer.menu.addresses', $role_permissions), ['class' => 'input-icheck']) !!} Addresses
+                </label>
+              </div>
+            </div>
+            <div class="col-md-12">
+              <div class="checkbox">
+                <label>
+                  {!! Form::checkbox('permissions[]', 'customer.menu.personal_settings', in_array('customer.menu.personal_settings', $role_permissions), ['class' => 'input-icheck']) !!} Personal Settings
+                </label>
+              </div>
+            </div>
+            <div class="col-md-12">
+              <div class="checkbox">
+                <label>
+                  {!! Form::checkbox('permissions[]', 'customer.menu.banners', in_array('customer.menu.banners', $role_permissions), ['class' => 'input-icheck']) !!} Banners
+                </label>
+              </div>
+            </div>
+            <div class="col-md-12">
+              <div class="checkbox">
+                <label>
+                  {!! Form::checkbox('permissions[]', 'customer.menu.order_details', in_array('customer.menu.order_details', $role_permissions), ['class' => 'input-icheck']) !!} Order Details
+                </label>
+              </div>
+            </div>
+            <div class="col-md-12">
+              <div class="checkbox">
+                <label>
+                  {!! Form::checkbox('permissions[]', 'customer.menu.logout', in_array('customer.menu.logout', $role_permissions), ['class' => 'input-icheck']) !!} Logout
+                </label>
+              </div>
+            </div>
+          </div>
+          </div>
+          <hr>
+
+        <div class="row check_group">
         <div class="col-md-1">
           <h4>@lang( 'role.user' )</h4>
         </div>

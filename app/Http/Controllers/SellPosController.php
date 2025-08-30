@@ -2170,6 +2170,100 @@ class SellPosController extends Controller
         return $charge->id;
     }
 
+    /**
+     * Show the form to update payment for a transaction
+     *
+     * @param  string  $transaction_id
+     * @return \Illuminate\Http\Response
+     */
+    public function showUpdatePayment($transaction_id)
+    {
+        if (!auth()->user()->can('sell.update')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $business_id = request()->session()->get('user.business_id');
+        $transaction = Transaction::where('business_id', $business_id)
+                                ->with(['payment_lines'])
+                                ->findOrFail($transaction_id);
+
+        $paid_amount = $this->transactionUtil->getTotalPaid($transaction->id);
+        $balance_due = $transaction->final_total - $paid_amount;
+
+        return view('admin.orders.update_payment', [
+            'order_no' => $transaction->id,
+            'order_total' => $transaction->final_total,
+            'amount_paid' => $paid_amount,
+            'balance_due' => $balance_due,
+            'transaction' => $transaction
+        ]);
+    }
+
+    /**
+     * Update payment for a transaction
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function updatePayment(Request $request, $id)
+    {
+        if (!auth()->user()->can('sell.update')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        try {
+            $business_id = request()->session()->get('user.business_id');
+            $transaction = Transaction::where('business_id', $business_id)
+                                    ->with(['payment_lines'])
+                                    ->findOrFail($id);
+
+            $inputs = $request->only(['amount', 'method', 'note']);
+            
+            DB::beginTransaction();
+            
+            // Add payment
+            $payment = [
+                'amount' => $inputs['amount'],
+                'method' => $inputs['method'],
+                'note' => $inputs['note'] ?? null,
+                'business_id' => $business_id,
+                'paid_on' => now(),
+                'created_by' => auth()->user()->id,
+                'payment_for' => $transaction->contact_id,
+                'transaction_id' => $transaction->id,
+                'is_return' => 0,
+            ];
+
+            $ref_count = $this->transactionUtil->setAndGetReferenceCount('sell_payment', $business_id);
+            $payment['payment_ref_no'] = $this->transactionUtil->generateReferenceNumber('sell_payment', $ref_count, $business_id);
+            
+            $transaction_payment = TransactionPayment::create($payment);
+            
+            // Update payment status
+            $payment_status = $this->transactionUtil->updatePaymentStatus($transaction->id);
+            $transaction->payment_status = $payment_status;
+            $transaction->save();
+            
+            DB::commit();
+
+            $output = [
+                'success' => true,
+                'msg' => __('purchase.payment_added_success')
+            ];
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::emergency("File:" . $e->getFile(). "Line:" . $e->getLine(). "Message:" . $e->getMessage());
+            
+            $output = [
+                'success' => false,
+                'msg' => __('messages.something_went_wrong')
+            ];
+        }
+
+        return $output;
+    }
+
     public function confirmPayment($id, Request $request)
     {
         try {

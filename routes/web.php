@@ -241,31 +241,163 @@ Route::middleware(['setData'])->group(function () {
 
     // Checkout routes (public storefront)
     Route::get('/order-details', function (Request $request) {
-        // Prefer explicit order_no from URL, else fallback to last session order
-        $orderNo = $request->query('order_no') ?: $request->session()->get('last_order_no');
-        $rows = [];
-        $subtotal = 0.0;
-        if ($orderNo) {
-            $rows = \App\OrderDetail::where('order_no', $orderNo)->get();
-            foreach ($rows as $r) {
-                $subtotal += (float) $r->line_total;
-            }
+        // Filters
+        $q = trim((string)$request->query('q', ''));
+        $from = $request->query('from');
+        $to = $request->query('to');
+
+        $query = \App\OrderDetail::query();
+        if ($q !== '') {
+            $query->where(function($x) use ($q){
+                $x->where('order_no', 'like', "%$q%")
+                  ->orWhere('customer_name', 'like', "%$q%");
+            });
         }
-        $tax_rate = 10; // example 10%
-        $tax = round($subtotal * ($tax_rate/100), 2);
+        if ($from) {
+            $query->whereDate('created_at', '>=', $from);
+        }
+        if ($to) {
+            $query->whereDate('created_at', '<=', $to);
+        }
+
+        // Aggregate orders by order_no from OrderDetail to show admin list
+        $groups = $query->select(
+                'order_no',
+                \DB::raw('COUNT(*) as items_count'),
+                \DB::raw('SUM(COALESCE(line_total, unit_price * quantity)) as subtotal'),
+                \DB::raw('MAX(payment_method) as payment_method'),
+                \DB::raw('MAX(customer_name) as customer_name'),
+                \DB::raw('MAX(created_at) as last_created_at')
+            )
+            ->groupBy('order_no')
+            ->orderByDesc('last_created_at')
+            ->get();
+
+        $orders = [];
+        foreach ($groups as $g) {
+            $subtotal = (float) ($g->subtotal ?? 0);
+            $tax_rate = 0.0; // adjust if tax stored
+            $tax = round($subtotal * ($tax_rate / 100), 2);
+            $shipping = 0.0;
+            $total = $subtotal + $tax + $shipping;
+
+            // Simple statuses (customize if you store real values)
+            $status = 'Pending';
+            $payment_status = ($g->payment_method && strtolower($g->payment_method) === 'paid') ? 'Paid' : 'Pending';
+
+            $orders[] = [
+                'order_no' => $g->order_no,
+                'customer_name' => $g->customer_name ?? 'Guest User',
+                'date' => $g->last_created_at ? \Carbon\Carbon::parse($g->last_created_at)->format('M d, Y H:i') : '',
+                'items_count' => (int) ($g->items_count ?? 0),
+                'subtotal' => $subtotal,
+                'tax_rate' => $tax_rate,
+                'tax' => $tax,
+                'shipping' => $shipping,
+                'total' => $total,
+                'status' => $status,
+                'payment_status' => $payment_status,
+                'payment_method' => $g->payment_method ?? null,
+            ];
+        }
+
+        return view('admin.orders.index', compact('orders'));
+    })->name('orders.index');
+
+    Route::get('/order-details/{order_no}', function (Request $request, $order_no) {
+        $rows = \App\OrderDetail::where('order_no', $order_no)->get();
+
+        $items = [];
+        $subtotal = 0.0;
+
+        foreach ($rows as $r) {
+            $price = (float) ($r->unit_price ?? 0);
+            $qty = (float) ($r->quantity ?? 0);
+            $line_total = (float) ($r->line_total ?? ($price * $qty));
+            $subtotal += $line_total;
+
+            $items[] = [
+                'product' => $r->product_name ?? '',
+                'sku' => $r->sku ?? '',
+                'price' => $price,
+                'qty' => $qty,
+                'total' => $line_total,
+            ];
+        }
+
+        $tax_rate = 0; // adjust if you store tax
+        $tax = round($subtotal * ($tax_rate / 100), 2);
         $shipping = 0.0;
         $total = $subtotal + $tax + $shipping;
 
-        return view('customer.order_details', [
-            'order_no' => $orderNo,
-            'items' => $rows,
-            'subtotal' => $subtotal,
-            'tax_rate' => $tax_rate,
-            'tax' => $tax,
-            'shipping' => $shipping,
-            'total' => $total,
+        $first = $rows->first();
+        $order = [
+            'id' => $order_no,
+            'date' => $first && $first->created_at ? $first->created_at->format('M d, Y H:i') : '',
+            'status' => 'Pending',
+            'payment_method' => $first->payment_method ?? 'Cod',
+            'payment_status' => 'Pending',
+            'name' => $first->customer_name ?? 'Guest User',
+            'email' => 'user@gmail.com', // placeholder
+            'shipping' => 'Kilinocchi, kk 00000 Sri Lanka Phone: 0778870135', // placeholder
+            'billing' => 'Kilinocchi, kk 00000 Sri Lanka Phone: 0778870135', // placeholder
+        ];
+
+        return view('admin.orders.show', [
+            'order' => $order,
+            'items' => $items,
+            'summary' => [
+                'subtotal' => $subtotal,
+                'tax_rate' => $tax_rate,
+                'tax' => $tax,
+                'shipping' => $shipping,
+                'total' => $total,
+            ],
         ]);
     })->name('order.details');
+
+    // Update Order Status - form
+    Route::get('/order-details/{order_no}/status', function (Request $request, $order_no) {
+        // Load basic order info for header
+        $first = \App\OrderDetail::where('order_no', $order_no)->first();
+        if (!$first) {
+            abort(404);
+        }
+
+        $current_status = null;
+        if (\Schema::hasColumn('order_details', 'status')) {
+            $s = \App\OrderDetail::where('order_no', $order_no)
+                ->whereNotNull('status')
+                ->value('status');
+            $current_status = $s ?: null;
+        }
+
+        return view('admin.orders.update_status', [
+            'order_no' => $order_no,
+            'current_status' => $current_status,
+        ]);
+    })->name('order.status.edit');
+
+    // Update Order Status - submit
+    Route::post('/order-details/{order_no}/status', function (Request $request, $order_no) {
+        $data = $request->validate([
+            'status' => ['required', 'in:Pending,Processing,Shipped,Delivered,Cancelled'],
+        ]);
+
+        $updated = false;
+        if (\Schema::hasColumn('order_details', 'status')) {
+            \App\OrderDetail::where('order_no', $order_no)->update(['status' => $data['status']]);
+            $updated = true;
+        }
+
+        $msg = $updated
+            ? 'Order status updated to '.$data['status'].' successfully.'
+            : 'Status updated for this session. Add a "status" column on order_details to persist in DB.';
+
+        return redirect()->route('order.status.edit', ['order_no' => $order_no])
+            ->with('success', $msg);
+    })->name('order.status.update');
+
     Route::get('/checkout', function (Request $request) {
         $cart = (array) $request->session()->get('cart', []);
         $productIds = array_keys($cart);
@@ -324,132 +456,79 @@ Route::middleware(['setData'])->group(function () {
     })->name('checkout.show');
 
     Route::post('/checkout/place', function (Request $request) {
-        // Normalize inputs before validation
-        if ($request->filled('card_number')) {
-            $request->merge([
-                'card_number' => preg_replace('/\D+/', '', $request->input('card_number')),
-            ]);
-        }
-        // Validate inputs
-        $currentYear = (int) date('Y');
-        $data = $request->validate([
-            'customer_name' => ['required','string','max:255'],
-            'mobile' => ['required','string','max:20', 'regex:/^\+?[0-9\s\-]{7,20}$/'],
-            'shipping_address' => ['required','string','max:1000'],
-            'billing_address' => ['required','string','max:1000'],
+        // Minimal validation just to mimic placing order
+        $request->validate([
+            'shipping_address' => ['nullable','string','max:1000'],
+            'billing_address' => ['nullable','string','max:1000'],
             'payment_method' => ['required','in:cod,card,paypal'],
             'order_notes' => ['nullable','string','max:2000'],
-            // Card-only fields
-            'card_name' => ['required_if:payment_method,card','nullable','string','max:255'],
-            'card_number' => ['required_if:payment_method,card','nullable','string','min:13','max:19','regex:/^[0-9]{13,19}$/'],
-            'card_exp_month' => ['required_if:payment_method,card','nullable','integer','between:1,12'],
-            'card_exp_year' => ['required_if:payment_method,card','nullable','integer','min:'.$currentYear,'max:'.($currentYear+15)],
-            'card_cvv' => ['required_if:payment_method,card','nullable','string','regex:/^[0-9]{3,4}$/'],
         ]);
 
-        // Build items from current session cart
+        // Create OrderDetail rows from session cart
         $cart = (array) $request->session()->get('cart', []);
-        if (empty($cart)) {
-            return redirect()->route('cart.show')->with('status', 'Cart is empty');
+        if (!empty($cart)) {
+            // Generate a simple order number
+            $order_no = 'ORD'.date('YmdHis').mt_rand(100,999);
+
+            $productIds = array_keys($cart);
+            $products = \App\Product::whereIn('id', $productIds)->with(['variations'])->get();
+
+            // Build a quick index by id
+            $byId = [];
+            foreach ($products as $p) { $byId[(string)$p->id] = $p; $byId[$p->id] = $p; }
+
+            $customer_name = trim(($request->input('first_name') ?: '').' '.($request->input('last_name') ?: ''));
+            if ($customer_name === '') { $customer_name = 'Guest User'; }
+            $notes = (string) $request->input('order_notes', '');
+            $payment_method = (string) $request->input('payment_method', 'cod');
+
+            foreach ($cart as $pid => $qty) {
+                $qty = (float) $qty;
+                if ($qty <= 0) { continue; }
+
+                $product = $byId[(string)$pid] ?? null;
+                if (!$product) { continue; }
+
+                // choose a variation to get price/sku
+                $variation = null;
+                if ($product->relationLoaded('variations') && $product->variations->isNotEmpty()) {
+                    $variation = $product->variations
+                        ->sortBy(function($x){ return is_null($x->sell_price_inc_tax) ? INF : $x->sell_price_inc_tax; })
+                        ->first();
+                }
+                $unit_price = 0.0;
+                $sku = '';
+                if ($variation) {
+                    $unit_price = (float) ($variation->sell_price_inc_tax ?? $variation->default_sell_price ?? 0);
+                    $sku = (string) ($variation->sub_sku ?? '');
+                }
+                $line_total = $unit_price * $qty;
+
+                \App\OrderDetail::create([
+                    'order_no' => $order_no,
+                    'product_id' => $product->id,
+                    'product_name' => $product->name,
+                    'sku' => $sku,
+                    'unit_price' => $unit_price,
+                    'quantity' => $qty,
+                    'line_total' => $line_total,
+                    'payment_method' => $payment_method,
+                    'customer_name' => $customer_name,
+                    'notes' => $notes,
+                ]);
+            }
         }
 
-        $products = \App\Product::whereIn('id', array_keys($cart))->with('variations')->get();
-        $items = [];
-        foreach ($products as $product) {
-            $qty = (int) ($cart[(string)$product->id] ?? $cart[$product->id] ?? 0);
-            if ($qty < 1) { continue; }
-            $variation = ($product->relationLoaded('variations') && $product->variations->isNotEmpty())
-                ? $product->variations->sortBy(function($x){ return is_null($x->sell_price_inc_tax) ? INF : $x->sell_price_inc_tax; })->first()
-                : null;
-            $unit_price = $variation ? (float) ($variation->sell_price_inc_tax ?? $variation->default_sell_price ?? 0) : 0.0;
-            $line_total = $unit_price * $qty;
-            $items[] = [
-                'product_id' => $product->id,
-                'product_name' => $product->name,
-                'sku' => $variation ? ($variation->sub_sku ?: '') : null,
-                'unit_price' => $unit_price,
-                'quantity' => $qty,
-                'line_total' => $line_total,
-            ];
-        }
-
-        if (empty($items)) {
-            return redirect()->route('cart.show')->with('status', 'Cart is empty');
-        }
-
-        // Generate order number and persist each line
-        $orderNo = 'OD'.date('YmdHis').rand(100,999);
-        $card_last4 = null;
-        if (($data['payment_method'] ?? null) === 'card' && !empty($data['card_number'])) {
-            $card_last4 = substr(preg_replace('/\D+/', '', $data['card_number']), -4) ?: null;
-        }
-
-        foreach ($items as $it) {
-            \App\OrderDetail::create([
-                'order_no' => $orderNo,
-                'product_id' => $it['product_id'],
-                'product_name' => $it['product_name'],
-                'sku' => $it['sku'],
-                'unit_price' => $it['unit_price'],
-                'quantity' => $it['quantity'],
-                'line_total' => $it['line_total'],
-                'payment_method' => $data['payment_method'] ?? null,
-                'customer_name' => $data['customer_name'] ?? null,
-                'notes' => trim(collect([
-                    'Mobile: ' . ($data['mobile'] ?? ''),
-                    'Shipping: ' . ($data['shipping_address'] ?? ''),
-                    'Billing: ' . ($data['billing_address'] ?? ''),
-                    (($data['payment_method'] ?? null) === 'card' && $card_last4) ? ('Card: **** **** **** ' . $card_last4) : null,
-                    ($data['order_notes'] ?? null) ? ('Notes: ' . $data['order_notes']) : null,
-                ])->filter()->implode(' | ')),
-            ]);
-        }
-
-        // Clear cart, remember last order and redirect to order details page
+        // Clear the cart and redirect
         $request->session()->forget('cart');
-        $request->session()->put('last_order_no', $orderNo);
-        // Maintain a lightweight session list of "my orders" for the current browser session
-        $myOrders = (array) $request->session()->get('my_orders', []);
-        // Add newest first, keep unique and cap list size
-        array_unshift($myOrders, $orderNo);
-        $myOrders = array_values(array_unique($myOrders));
-        $myOrders = array_slice($myOrders, 0, 20);
-        $request->session()->put('my_orders', $myOrders);
-
-        return redirect()->route('order.details', ['order_no' => $orderNo]);
+        return redirect()->to(url('/'))
+            ->with('success', 'Order placed successfully. Thank you for your purchase!');
     })->name('checkout.place');
 
     // Public customer landing page
     Route::get('/customer', function () {
         return view('customer.customer');
     })->name('customer.page');
-
-    // My Orders (session-based for public storefront)
-    Route::get('/my-orders', function (Request $request) {
-        $orderNos = (array) $request->session()->get('my_orders', []);
-        $orders = [];
-        foreach ($orderNos as $no) {
-            $rows = \App\OrderDetail::where('order_no', $no)->get();
-            if ($rows->isEmpty()) { continue; }
-            $subtotal = (float) $rows->sum('line_total');
-            $tax_rate = 10; // align with order details page example
-            $tax = round($subtotal * ($tax_rate/100), 2);
-            $shipping = 0.0;
-            $total = $subtotal + $tax + $shipping;
-            $orders[] = [
-                'order_no' => $no,
-                'items_count' => $rows->sum('quantity'),
-                'subtotal' => $subtotal,
-                'tax_rate' => $tax_rate,
-                'tax' => $tax,
-                'shipping' => $shipping,
-                'total' => $total,
-                'payment_method' => optional($rows->first())?->payment_method,
-                'customer_name' => optional($rows->first())?->customer_name,
-            ];
-        }
-        return view('customer.my_orders', [ 'orders' => $orders ]);
-    })->name('orders.index');
 
     Auth::routes();
 
@@ -483,6 +562,9 @@ Route::middleware(['setData', 'auth:customer'])->group(function () {
 
 //Routes for authenticated users only
 Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone', 'AdminSidebarMenu', 'CheckUserLogin'])->group(function () {
+    // Payment update routes
+    Route::get('/update_payment/{transaction_id}', [\App\Http\Controllers\SellPosController::class, 'showUpdatePayment'])->name('update_payment');
+    Route::post('/update_payment/{transaction_id}', [\App\Http\Controllers\SellPosController::class, 'updatePayment'])->name('update_payment.submit');
     Route::get('pos/payment/{id}', [SellPosController::class, 'edit'])->name('edit-pos-payment');
     Route::get('service-staff-availability', [SellPosController::class, 'showServiceStaffAvailibility']);
     Route::get('pause-resume-service-staff-timer/{user_id}', [SellPosController::class, 'pauseResumeServiceStaffTimer']);
